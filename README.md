@@ -1,1 +1,1 @@
-# dataminer
+# dataMineR
