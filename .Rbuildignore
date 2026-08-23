@@ -1,0 +1,11 @@
+^\.git$
+^\.gitignore$
+^data-raw$
+^\.github$
+^.*\.Rproj$
+^\.Rproj\.user$
+^README\.Rmd$
+^\.Rhistory$
+^LICENSE\.md$
+^dataMineR_[0-9.]+\.tar\.gz$
+^dataMineR\.Rcheck$

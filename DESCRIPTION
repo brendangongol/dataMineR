@@ -1,0 +1,55 @@
+Package: dataMineR
+Title: Clinical Data Mining and Comparison Tools
+Version: 0.1.0
+Authors@R:
+    person("Brendan", "Gongol", email = "brengong@gmail.com", role = c("aut", "cre"))
+Description: Functions for grouped Table 1 summaries, regression screening,
+    continuous and categorical group comparisons, correlation and agreement
+    analyses, survival analysis, mediation analysis, dimensionality reduction,
+    power analysis, and bootstrap predictor-stability screening. The package
+    includes synthetic example datasets and an end-to-end demonstration
+    workflow.
+URL: https://github.com/brendangongol/dataMineR
+BugReports: https://github.com/brendangongol/dataMineR/issues
+License: MIT + file LICENSE
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.3
+Depends:
+    R (>= 4.1.0)
+Imports:
+    data.table,
+    ggplot2,
+    ggpubr,
+    openxlsx,
+    pROC,
+    scales,
+    survival,
+    stats,
+    utils,
+    grDevices
+Suggests:
+    BlandAltmanLeh,
+    blandr,
+    effectsize,
+    GGally,
+    ggfortify,
+    ggrepel,
+    lsr,
+    mediation,
+    npreg,
+    patchwork,
+    proxy,
+    pwr,
+    pwrss,
+    umap,
+    WebPower,
+    seminr,
+    Hmisc,
+    vtable,
+    medicaldata,
+    NHANES,
+    testthat (>= 3.0.0),
+    usethis
+Config/testthat/edition: 3
+LazyData: true
