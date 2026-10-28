@@ -357,7 +357,6 @@ pred_vars   <- c("sud_any_01", "white_01", "hispanic_01", "black_01", "other_rac
                                                                                      "hypothy", "rf", "ld", "pud", "aids", "lymph", "metacanc", "solidtum", "rheumd",
                                                                                      "coag", "obes", "wloss", "fed", "blane", "dane", "alcohol", "drug", "psycho", "depre")))
 
-# model_dt <- fread("X:/Matt/Dropbox/egs_misc_1621.csv", select = c(outcome_vars, pred_vars, "NIS_STRATUM", "HOSP_NIS", "DISCWT", "YEAR")) #### Real NIS extract
 data(egs_misc_1621, package = "dataMineR")   #### Synthetic stand-in bundled with the package (see ?egs_misc_1621)
 model_dt <- as.data.table(egs_misc_1621)[, c(outcome_vars, pred_vars, "NIS_STRATUM", "HOSP_NIS", "DISCWT", "YEAR"), with = FALSE]
 
