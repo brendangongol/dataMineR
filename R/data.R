@@ -126,3 +126,55 @@
 #'   \code{"HEALTHY"}, \code{"SMOKER_ONLY"}) is added here.
 #' @source \pkg{NHANES}; see \code{data-raw/create_example_data.R}.
 "nhanes_like"
+
+#' Synthetic emergency general surgery survey dataset
+#'
+#' Synthetic discharge-level data in the layout of a National Inpatient Sample
+#' (NIS) emergency general surgery extract, for demonstrating the weighted
+#' LASSO (\code{\link{LassoCompile}}) and the propensity score matching and
+#' weighting functions (\code{\link{PSRegression}},
+#' \code{\link{IPTWRegression}}, \code{\link{EBRegression}}). Hospitals are
+#' nested in year-specific strata, a few strata hold one hospital, and every
+#' substance use disorder (SUD) patient carries an Elixhauser drug or alcohol
+#' code. The exposure effects are known: SUD affects death only through the
+#' drug and alcohol codes, raises length of stay (rate ratio about 1.16),
+#' respiratory complications (odds ratio about 1.49) and cardiac complications
+#' (odds ratio about 1.22), and has no effect on renal complications. SUD
+#' patients are younger, and age raises every outcome, so unadjusted
+#' comparisons understate the SUD effects.
+#'
+#' @format A \code{data.table} with 40,000 rows and 58 variables:
+#' \describe{
+#'   \item{Death_01}{In-hospital death (0/1); about 3.7 percent of records.}
+#'   \item{YEAR}{Discharge year, 2016 to 2021.}
+#'   \item{HOSP_NIS}{Hospital identifier (unique across years).}
+#'   \item{NIS_STRATUM}{Sampling stratum code, reused every year.}
+#'   \item{sud_any_01}{Substance use disorder (0/1), the example exposure.}
+#'   \item{white_01, hispanic_01, black_01, other_race_01, asian_pi_01,
+#'     native_american_01}{Race and ethnicity indicators (one per record).}
+#'   \item{medicare_01, private_01, medicaid_01, other_payor_01}{Payer
+#'     indicators (one per record).}
+#'   \item{first_quartile_01, second_quartile_01, third_quartile_01,
+#'     fourth_quartile_01}{Median household income quartile of the patient's
+#'     ZIP code (one per record).}
+#'   \item{PRDAY_first_egs_proc_positive}{Days from admission to the first
+#'     emergency general surgery procedure (measured after admission).}
+#'   \item{sex_01}{Sex indicator (0/1).}
+#'   \item{AGE}{Age in years, 18 to 90.}
+#'   \item{elix_chf, elix_carit, ..., elix_depre}{Elixhauser comorbidity
+#'     indicators (29 conditions, rising with age).}
+#'   \item{elix_alcohol, elix_drug}{Elixhauser alcohol and drug abuse
+#'     indicators; together they nearly define \code{sud_any_01}.}
+#'   \item{DISCWT}{Discharge sampling weight.}
+#'   \item{LOS}{Length of stay in days (count).}
+#'   \item{complic_respiratory, complic_cardiac, complic_renal}{Postoperative
+#'     complication indicators (0/1).}
+#' }
+#' @source Randomly generated; see \code{data-raw/create_example_data.R}.
+#' @examples
+#' data(egs_misc_1621)
+#' d <- egs_misc_1621
+#' d$strata_id <- paste(d$YEAR, d$NIS_STRATUM, sep = "_")
+#' d$cluster_id <- paste(d$YEAR, d$HOSP_NIS, sep = "_")
+#' table(d$sud_any_01, d$elix_drug | d$elix_alcohol)
+"egs_misc_1621"

@@ -58,7 +58,7 @@ to (as \code{SurvivalUnivariateCox.xlsx}).}
 A list including \code{KMOverall}/\code{KMOverallPlot}, and (when
 applicable) \code{KMStratified}/\code{KMStratifiedPlot},
 \code{LogRankTest}/\code{LogRankP}, and \code{UnivariateCox} (a
-  data.table of HR, CI, Wald statistic, and p-value per covariate coefficient).
+data.table of HR, CI, Wald statistic, and p-value per covariate).
 }
 \description{
 Derives a survival time and status from admission/death/discharge date

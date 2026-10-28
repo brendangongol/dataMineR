@@ -460,6 +460,73 @@ nhanes_like$group <- with(nhanes_like, ifelse( Diabetes == "Yes" & SmokeNow == "
 #### Drop rows where group can't be determined (NAs in key variables) ####
 nhanes_like <- nhanes_like[!is.na(nhanes_like$group), ]
 
+#########################################################################
+#### Synthetic NIS emergency general surgery dataset (egs_misc_1621) ####
+#########################################################################
+#### Stands in for egs_misc_1621.csv (NIS 2016-2021): the LASSO section's outcome, predictors and survey design   ####
+#### columns. Prevalences and effects mirror the real run: SUD always carries an Elixhauser drug or alcohol code, ####
+#### mortality is about 3.7%, hospitals are nested in year-specific strata, and a few strata hold one hospital.   ####
+#### Strata hold about 12 hospitals each, so the workflow can hold out hospitals within strata for validation.      ####
+make_egs <- function(N, hospitals_per_year, n_strata, n_singleton_strata, hospital_id_start) {
+  years <- 2016:2021
+  codes <- sample(1000:9999, n_strata + n_singleton_strata)            # stratum codes reused every year, as in the NIS
+  strata <- c(rep(codes[seq_len(n_strata)], length.out = hospitals_per_year - n_singleton_strata),
+              codes[n_strata + seq_len(n_singleton_strata)])
+  hosp <- data.frame(YEAR = rep(years, each = hospitals_per_year),
+                     HOSP_NIS = hospital_id_start + seq_len(length(years) * hospitals_per_year),
+                     NIS_STRATUM = as.vector(replicate(length(years), sample(strata))),
+                     hospital_effect = rnorm(length(years) * hospitals_per_year, 0, 0.25))
+  d <- hosp[sample(nrow(hosp), N, replace = TRUE), ]
+  one_hot <- function(levels, prob) {
+    g <- sample(levels, N, replace = TRUE, prob = prob)
+    setNames(as.data.frame(sapply(levels, function(l) as.integer(g == l))), levels)
+  }
+  race <- one_hot(c("white_01", "hispanic_01", "black_01", "other_race_01", "asian_pi_01", "native_american_01"),
+                  c(0.64, 0.14, 0.13, 0.04, 0.045, 0.005))
+  payer <- one_hot(c("medicare_01", "private_01", "medicaid_01", "other_payor_01"), c(0.40, 0.31, 0.19, 0.10))
+  income <- one_hot(c("first_quartile_01", "second_quartile_01", "third_quartile_01", "fourth_quartile_01"), c(0.29, 0.26, 0.24, 0.21))
+  sud <- rbinom(N, 1, 0.062)
+  age <- round(pmax(18, pmin(90, rnorm(N, ifelse(sud == 1, 43, 53), 18))))
+  #### SUD patients always have an Elixhauser drug or alcohol code; a few non-SUD patients also have one ####
+  drug <- ifelse(sud == 1, rbinom(N, 1, 0.61), rbinom(N, 1, 0.0004))
+  alcohol <- ifelse(sud == 1, rbinom(N, 1, 0.47), rbinom(N, 1, 0.0022))
+  neither <- sud == 1 & drug == 0 & alcohol == 0
+  drug[neither] <- rbinom(sum(neither), 1, 0.55); alcohol[neither] <- 1 - drug[neither]
+  elix_prev <- c(chf = 0.08, carit = 0.12, valv = 0.04, pcd = 0.02, pvd = 0.04, hypunc = 0.33, hypc = 0.16, para = 0.02, ond = 0.05,
+                 cpd = 0.15, diabunc = 0.11, diabc = 0.10, hypothy = 0.10, rf = 0.11, ld = 0.06, pud = 0.02, aids = 0.003, lymph = 0.01,
+                 metacanc = 0.03, solidtum = 0.03, rheumd = 0.03, coag = 0.05, obes = 0.18, wloss = 0.06, fed = 0.25, blane = 0.02,
+                 dane = 0.03, psycho = 0.02, depre = 0.12)
+  elix <- sapply(elix_prev, function(p) rbinom(N, 1, pmin(0.95, p * exp(0.02 * (age - 53)))))   # comorbidities rise with age
+  colnames(elix) <- paste0("elix_", names(elix_prev))
+  out <- data.frame(d[, c("YEAR", "HOSP_NIS", "NIS_STRATUM")], sud_any_01 = sud, race, payer, income,
+                    PRDAY_first_egs_proc_positive = rnbinom(N, size = 1, mu = 1.3), sex_01 = rbinom(N, 1, 0.50), AGE = age,
+                    elix, elix_alcohol = alcohol, elix_drug = drug,
+                    DISCWT = round(runif(N, 4.85, 5.05), 5), row.names = NULL)
+  #### Log-odds of death, using coefficients close to the real LASSO fit (SUD acts only through elix_drug/elix_alcohol) ####
+  beta <- c(hispanic_01 = -0.34, black_01 = 0.16, other_race_01 = 0.04, asian_pi_01 = -0.41, medicare_01 = 0.24, medicaid_01 = 0.22,
+            other_payor_01 = 0.31, first_quartile_01 = 0.33, second_quartile_01 = 0.19, third_quartile_01 = 0.08,
+            PRDAY_first_egs_proc_positive = 0.023, sex_01 = 0.09, AGE = 0.034, elix_chf = 0.52, elix_carit = 0.73, elix_valv = -0.36,
+            elix_pcd = 0.48, elix_pvd = 0.98, elix_hypunc = -0.62, elix_hypc = -0.42, elix_para = 0.98, elix_ond = 1.52, elix_cpd = 0.32,
+            elix_diabunc = -0.07, elix_diabc = 0.08, elix_hypothy = -0.21, elix_rf = 0.32, elix_ld = 0.92, elix_pud = -0.23,
+            elix_aids = 0.16, elix_lymph = 0.28, elix_metacanc = 0.51, elix_solidtum = 0.10, elix_rheumd = 0.21, elix_coag = 1.40,
+            elix_obes = -0.34, elix_wloss = 0.66, elix_fed = 1.45, elix_blane = -0.20, elix_dane = -0.48, elix_alcohol = -0.03,
+            elix_drug = -0.27, elix_psycho = 0.29, elix_depre = -0.31)
+  eta <- drop(as.matrix(out[, names(beta)]) %*% beta) + d$hospital_effect
+  intercept <- uniroot(function(a) mean(plogis(a + eta)) - 0.037, c(-20, 5))$root   # overall mortality about 3.7%
+  out$Death_01 <- rbinom(N, 1, plogis(intercept + eta))
+  #### Further outcomes for the propensity-score section, with known direct SUD effects (conditional on the covariates): ####
+  #### LOS rate ratio exp(0.15) = 1.16; respiratory OR exp(0.4) = 1.49; cardiac OR exp(0.2) = 1.22; renal none (null).     ####
+  #### Age raises every outcome and SUD patients are younger, so unadjusted comparisons understate the SUD effects.        ####
+  age_c <- out$AGE - 53
+  out$LOS <- rnbinom(N, size = 2, mu = exp(1.5 + 0.01 * age_c + 0.3 * out$elix_fed + 0.2 * out$elix_chf + 0.15 * sud + 0.5 * d$hospital_effect))
+  out$complic_respiratory <- rbinom(N, 1, plogis(-3.0 + 0.02 * age_c + 0.5 * out$elix_cpd + 0.4 * sud))
+  out$complic_cardiac <- rbinom(N, 1, plogis(-3.2 + 0.03 * age_c + 0.6 * out$elix_chf + 0.6 * out$elix_carit + 0.2 * sud))
+  out$complic_renal <- rbinom(N, 1, plogis(-3.5 + 0.02 * age_c + 0.9 * out$elix_rf))
+  out[, c("Death_01", setdiff(names(out), "Death_01"))]
+}
+set.seed(42)
+egs_misc_1621 <- make_egs(N = 40000, hospitals_per_year = 150, n_strata = 12, n_singleton_strata = 4, hospital_id_start = 10000)
+
 ################################################################################
 #### Save every example dataset into data/*.rda ####
 #### Save as data.table so the demo can use data.table syntax directly. Public ####
@@ -472,6 +539,7 @@ data.table::setDT(dream_data)
 data.table::setDT(peru_data)
 data.table::setDT(MData)
 data.table::setDT(nhanes_like)
+data.table::setDT(egs_misc_1621)
 
 usethis::use_data(copd_data, overwrite = TRUE)
 usethis::use_data(dfMigrant, overwrite = TRUE)
@@ -480,4 +548,5 @@ usethis::use_data(dream_data, overwrite = TRUE)
 usethis::use_data(peru_data, overwrite = TRUE)
 usethis::use_data(MData, overwrite = TRUE)
 usethis::use_data(nhanes_like, overwrite = TRUE)
+usethis::use_data(egs_misc_1621, overwrite = TRUE)
 

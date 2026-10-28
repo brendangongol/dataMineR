@@ -6,4 +6,3 @@
 *.Rcheck/
 *.tar.gz
 dataMineRWorkflow-results/
-/tests/

@@ -1,1 +1,1 @@
-dataMineRWorkflow    End-to-end Table 1 / comparison / regression / survival / mediation workflow on the bundled dfMigrant example dataset
+dataMineRWorkflow    End-to-end Table 1 / comparison / regression / survival / mediation workflow on dfMigrant, plus survey-weighted LASSO and propensity score matching / weighting on egs_misc_1621

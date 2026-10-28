@@ -6,9 +6,11 @@ Authors@R:
 Description: Functions for grouped Table 1 summaries, regression screening,
     continuous and categorical group comparisons, correlation and agreement
     analyses, survival analysis, mediation analysis, dimensionality reduction,
-    power analysis, and bootstrap predictor-stability screening. The package
-    includes synthetic example datasets and an end-to-end demonstration
-    workflow.
+    power analysis, bootstrap predictor-stability screening, survey-weighted
+    LASSO variable selection with double selection of confounders, and
+    propensity score matching, inverse probability weighting and entropy
+    balancing driven by an editable setup table. The package includes
+    synthetic example datasets and an end-to-end demonstration workflow.
 URL: https://github.com/brendangongol/dataMineR
 BugReports: https://github.com/brendangongol/dataMineR/issues
 License: MIT + file LICENSE
@@ -18,16 +20,26 @@ RoxygenNote: 7.3.3
 Depends:
     R (>= 4.1.0)
 Imports:
+    cobalt,
     data.table,
+    digest,
     ggplot2,
     ggpubr,
+    glmnet,
+    grDevices,
+    MatchIt,
     openxlsx,
+    patchwork,
     pROC,
+    sandwich,
     scales,
-    survival,
+    splines,
     stats,
+    survey,
+    survival,
+    svyVarSel,
     utils,
-    grDevices
+    WeightIt
 Suggests:
     BlandAltmanLeh,
     blandr,
@@ -38,7 +50,6 @@ Suggests:
     lsr,
     mediation,
     npreg,
-    patchwork,
     proxy,
     pwr,
     pwrss,

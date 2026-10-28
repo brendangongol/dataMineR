@@ -9,13 +9,25 @@
 Functions for grouped Table 1 summaries, regression screening, continuous
 and categorical group comparisons, correlation and agreement analyses,
 survival analysis, mediation analysis, dimensionality reduction, power
-analysis, and bootstrap predictor-stability screening.
+analysis, bootstrap predictor-stability screening, survey-weighted LASSO
+variable selection (\code{\link{LassoCompile}}), and propensity score
+matching, inverse probability weighting and entropy balancing
+(\code{\link{PSRegression}}, \code{\link{IPTWRegression}},
+\code{\link{EBRegression}}).
 }
 \details{
 See \code{demo("dataMineRWorkflow", package = "dataMineR")} for an
 end-to-end example built on the package's synthetic example datasets
 (\code{\link{dfMigrant}}, \code{\link{copd_data}}, \code{\link{dream_data}},
-\code{\link{peru_data}}, and others).
+\code{\link{peru_data}}, \code{\link{egs_misc_1621}}, and others).
+}
+\seealso{
+Useful links:
+\itemize{
+  \item \url{https://github.com/brendangongol/dataMineR}
+  \item Report bugs at \url{https://github.com/brendangongol/dataMineR/issues}
+}
+
 }
 \author{
 \strong{Maintainer}: Brendan Gongol \email{brengong@gmail.com}
