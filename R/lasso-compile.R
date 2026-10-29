@@ -424,17 +424,20 @@ Lasso_WriteReadme <- function(table, models, Fpath) {
   invisible(guide[present, ])
 }
 
-#' Overview of LassoCompile results in three panes
+#' Overview of LassoCompile results in two or three panes
 #'
 #' One row per covariate, so each role can be traced to its source. An
-#' exposure that is also a predictor of the other dependents is a row too, with
-#' its correlation to the other exposures in pane 1. Pane 1
+#' exposure that is also a predictor of the other dependents is a row too,
+#' pinned with the other exposures in an \code{Exposures} group at the top, in
+#' the order of \code{exposures}, so the exposure-by-exposure correlations form
+#' one block in pane 1. Pane 1
 #' (from the data): the covariate's weighted correlation with each exposure,
 #' from \code{MatchingAssumptionCheck()}. Pane 2 (from \code{LassoCompile()}): a
 #' bubble where a dependent's LASSO kept the covariate; colour is the
 #' standardized coefficient, size the bootstrap selection percentage, an
 #' outline marks a significant unpenalized refit and a cross an unreliable one.
-#' Pane 3: the role and the reason. Roles, in order: near-duplicate of the
+#' Optional pane 3 (\code{ShowRoles = TRUE}): the role and the reason. Without
+#' it the role groups label the rows on the right of pane 2. Roles, in order: near-duplicate of the
 #' exposure (flagged alone); near-duplicate with other codes (flagged by the
 #' joint rule); confounder, strong or weak (kept by an exposure LASSO and at
 #' least one outcome LASSO); outcome only; exposure only (a possible
@@ -460,13 +463,23 @@ Lasso_WriteReadme <- function(table, models, Fpath) {
 #'   colour scale.
 #' @param ClusterMethod Row order within each role: \code{"correlation"},
 #'   \code{"signed"} or \code{"none"}.
+#' @param ShowRoles Logical; add pane 3, the role and reason for every row.
 #' @param Fpath Optional folder to save the plot to (PDF).
 #' @param FileName File name used with \code{Fpath}.
 #' @param PrintPlot Logical; print the plot.
 #' @return Invisibly, a list: \code{plot}, \code{roles} (one overall row per
 #'   covariate), \code{roles_by_exposure} (one row per exposure and covariate,
-#'   used for exposure-specific matching recommendations), and \code{table}
-#'   (the plotted cells).
+#'   used for exposure-specific matching recommendations), \code{table}
+#'   (the plotted cells; \code{role} is the plotted row group, with the
+#'   exposures in \code{"Exposures"}), \code{correlations} (every covariate,
+#'   exposures included, against every exposure, strongest first: weighted
+#'   \code{correlation}, \code{exposed_share_with} (the share of patients with
+#'   the covariate who are exposed), the near-duplicate flags and
+#'   \code{joint_r}; pane 1 prints no numbers) and \code{exposure_correlations}
+#'   (the exposure-by-exposure rows of that table: \code{correlation},
+#'   \code{other_share_exposed}, the near-duplicate flags and \code{joint_r};
+#'   \code{NULL} without \code{exposures}). The function writes nothing except
+#'   the optional plot file.
 #' @examples
 #' \dontrun{
 #' ov <- LassoOverviewPlot(res, training, exposures = "sud_any_01",
@@ -478,7 +491,7 @@ LassoOverviewPlot <- function(results, data, exposures = NULL, weights = NULL, S
                               WeakThreshold = 0.1, phi_threshold = 0.8, joint_min_cor = 0.3, share_threshold = 0.01,
                               ReferenceLine = phi_threshold, SizeBreaks = c(25, 50, 75, 100),
                               ShowNotSelected = FALSE, ColorLimitQuantile = 0.95,
-                              ClusterMethod = c("correlation", "signed", "none"), Fpath = NULL,
+                              ClusterMethod = c("correlation", "signed", "none"), ShowRoles = FALSE, Fpath = NULL,
                               FileName = "LASSO_SelectionOverview.pdf", PrintPlot = TRUE) {
   ClusterMethod <- match.arg(ClusterMethod)
   tab <- as.data.frame(results$table)
@@ -567,7 +580,8 @@ LassoOverviewPlot <- function(results, data, exposures = NULL, weights = NULL, S
                  n_outcomes = length(for_out), stringsAsFactors = FALSE)
     }))
   })) else data.frame()
-  keep <- if (ShowNotSelected) roles$predictor else roles$predictor[roles$role != "not selected"]
+  # Exposures are always shown: their correlations with each other are the point of the Exposures group.
+  keep <- if (ShowNotSelected) roles$predictor else roles$predictor[roles$role != "not selected" | roles$predictor %in% exposures]
   if (!length(keep)) { stop("No covariate was selected for any dependent.") }
   mat <- matrix(vapply(dependents, function(dep) { s <- tab[tab$dependent == dep, ]; s$std_coef[match(keep, s$independent)] }, numeric(length(keep))),
                 nrow = length(keep), dimnames = list(keep, dependents))
@@ -579,10 +593,14 @@ LassoOverviewPlot <- function(results, data, exposures = NULL, weights = NULL, S
       cc <- suppressWarnings(cor(t(m))); cc[!is.finite(cc)] <- 0; as.dist(1 - cc) }
     v[stats::hclust(d, method = "average")$order]
   }
-  y_lv <- unlist(lapply(role_levels, function(r) order_rows(intersect(roles$predictor[roles$role == r], keep))))
-  used_roles <- role_levels[role_levels %in% roles$role[roles$predictor %in% keep]]
+  # Exposures form their own group at the top, in the order of `exposures`, so pane 1's columns line up with them.
+  exposure_rows <- intersect(exposures, keep)
+  y_lv <- c(exposure_rows, unlist(lapply(role_levels, function(r) order_rows(setdiff(intersect(roles$predictor[roles$role == r], keep), exposure_rows)))))
+  role_group <- ifelse(roles$predictor %in% exposure_rows, "Exposures", roles$role)
+  group_levels <- c("Exposures", role_levels)
+  used_roles <- group_levels[group_levels %in% role_group[roles$predictor %in% keep]]
   as_rows <- function(df, col) {
-    df$role <- factor(roles$role[match(df[[col]], roles$predictor)], levels = used_roles)
+    df$role <- factor(role_group[match(df[[col]], roles$predictor)], levels = used_roles)
     df[[col]] <- factor(df[[col]], levels = rev(y_lv))
     df
   }
@@ -622,17 +640,24 @@ LassoOverviewPlot <- function(results, data, exposures = NULL, weights = NULL, S
                           guide = ggplot2::guide_legend(override.aes = list(shape = 21, fill = "grey75", colour = "grey40"))) +
     ggplot2::scale_shape_manual(name = "Marks", values = stats::setNames(c(21, 4), c(mark_sig, mark_unreliable)),
                                 guide = ggplot2::guide_legend(override.aes = list(size = 4, fill = NA, stroke = 1.1))) +
-    ggplot2::facet_grid(ggplot2::vars(role), ggplot2::vars(.column), scales = "free", space = "free") +
+    ggplot2::facet_grid(ggplot2::vars(role), ggplot2::vars(.column), scales = "free", space = "free",
+                        labeller = ggplot2::labeller(role = ggplot2::label_wrap_gen(20))) +
     ggplot2::labs(x = NULL, y = NULL, title = "2. LASSO selection",
                   subtitle = "Bubble = kept by the LASSO for that column.\nexcl. = left out of that LASSO by the user") +
     pane_theme + ggplot2::theme(axis.text.y = if (is.null(exposures)) ggplot2::element_text() else ggplot2::element_blank(),
                                 axis.text.x = ggplot2::element_text(angle = 45, hjust = 1))
-  why <- as_rows(roles[roles$predictor %in% keep, ], "predictor")
+  # Without pane 3 the row groups are named on the right edge of pane 2.
+  if (!ShowRoles) p_sel <- p_sel + ggplot2::theme(strip.text.y = ggplot2::element_text(angle = 0, face = "bold", hjust = 0))
+  why <- roles[roles$predictor %in% keep, ]
+  why$colour_role <- why$role
+  # An exposure row sits in the Exposures group, so its role moves into the text.
+  why$reason <- ifelse(why$predictor %in% exposure_rows, paste0(why$role, ": ", why$reason), why$reason)
+  why <- as_rows(why, "predictor")
   why$.column <- "Role and reason"
   role_colours <- c("near-duplicate of exposure" = "#7F2704", "near-duplicate with other codes" = "#D94801", "confounder (strong)" = "#B2182B", "confounder (weak)" = "#F4A582",
                     "outcome only" = "#4393C3", "exposure only" = "#762A83", "selected" = "#4393C3", "not selected" = "grey60")
   p_why <- ggplot2::ggplot(why, ggplot2::aes(x = 0, y = predictor)) +
-    ggplot2::geom_point(ggplot2::aes(colour = role), shape = 15, size = 3, show.legend = FALSE) +
+    ggplot2::geom_point(ggplot2::aes(colour = colour_role), shape = 15, size = 3, show.legend = FALSE) +
     ggplot2::geom_text(ggplot2::aes(x = 0.04, label = reason), hjust = 0, size = 2.6) +
     ggplot2::scale_colour_manual(values = role_colours) +
     ggplot2::scale_x_continuous(limits = c(-0.02, 1), expand = c(0, 0)) +
@@ -642,27 +667,25 @@ LassoOverviewPlot <- function(results, data, exposures = NULL, weights = NULL, S
     pane_theme + ggplot2::theme(axis.text = ggplot2::element_blank(), panel.grid = ggplot2::element_blank(),
                                 strip.text.y = ggplot2::element_text(angle = 0, face = "bold", hjust = 0))
   if (is.null(exposures)) {
-    p <- patchwork::wrap_plots(p_sel, p_why, widths = c(length(dependents), 4)) + patchwork::plot_annotation(title = "LASSO selection overview")
+    p <- (if (ShowRoles) patchwork::wrap_plots(p_sel, p_why, widths = c(length(dependents), 4)) else p_sel) +
+      patchwork::plot_annotation(title = "LASSO selection overview")
   } else {
     lk <- as_rows(link[link$covariate %in% keep, ], "covariate")
     lk$.column <- paste("Correlation with", lk$exposure)
-    lk$label <- ifelse(abs(lk$correlation) < 0.05 & !lk$duplicate, "",
-                       ifelse(is.na(lk$exposed_share_with), sprintf("r %.2f", lk$correlation),
-                              sprintf("r %.2f, %.0f%% exposed", lk$correlation, 100 * lk$exposed_share_with)))
     p_link <- ggplot2::ggplot(lk, ggplot2::aes(x = correlation, y = covariate)) +
       ggplot2::geom_vline(xintercept = 0, colour = "grey60") +
       { if (length(ReferenceLine)) ggplot2::geom_vline(xintercept = c(-ReferenceLine, ReferenceLine), linetype = 2, colour = "grey40") } +
       ggplot2::geom_col(ggplot2::aes(fill = ifelse(near_duplicate, "alone", ifelse(joint_duplicate, "joint", "none"))), width = 0.6, show.legend = FALSE) +
-      ggplot2::geom_text(ggplot2::aes(x = ifelse(correlation >= 0, -0.98, 0.98), label = label, hjust = ifelse(correlation >= 0, 0, 1)), size = 2.4, colour = "grey20") +
       ggplot2::scale_fill_manual(values = c(none = "grey65", alone = "#7F2704", joint = "#D94801")) +
       ggplot2::scale_x_continuous(limits = c(-1, 1), breaks = sort(unique(c(-1, 0, 1, -ReferenceLine, ReferenceLine)))) +
       ggplot2::facet_grid(ggplot2::vars(role), ggplot2::vars(.column), scales = "free_y", space = "free_y") +
       ggplot2::labs(x = "weighted correlation (r)", y = NULL, title = "1. Link to the exposure (data)",
                     subtitle = paste0("Bar: r of the covariate with the exposure.\n",
                                       if (length(ReferenceLine)) sprintf("Dashed: |r| = %g (flag at |r| >= %g).\n", ReferenceLine, phi_threshold) else "",
-                                      "Label: r, % of patients with it exposed")) +
+                                      "Values: $correlations")) +
       pane_theme
-    p <- patchwork::wrap_plots(p_link, p_sel, p_why, widths = c(max(3, 2 * length(exposures)), length(dependents), 4.5)) +
+    p <- (if (ShowRoles) patchwork::wrap_plots(p_link, p_sel, p_why, widths = c(max(3, 2 * length(exposures)), length(dependents), 6.5))
+          else patchwork::wrap_plots(p_link, p_sel, widths = c(max(3, 2 * length(exposures)), length(dependents) + 1))) +
       patchwork::plot_annotation(title = "LASSO selection overview")
   }
   p <- p + patchwork::plot_layout(guides = "collect")
@@ -672,7 +695,24 @@ LassoOverviewPlot <- function(results, data, exposures = NULL, weights = NULL, S
                     device = if (capabilities("cairo")) grDevices::cairo_pdf else "pdf")
   }
   if (PrintPlot) print(p)
-  invisible(list(plot = p, roles = roles, roles_by_exposure = roles_by_exposure, table = cells))
+  # Exposure-by-exposure rows of the data link (pane 1), directional: `other_share_exposed` is the share of patients
+  # with the other exposure who are exposed. Returned for the caller to save; nothing is written here.
+  exposure_correlations <- if (is.null(link)) NULL else {
+    pairs <- link[link$covariate %in% exposures, c("exposure", "covariate", "correlation", "exposed_share_with", "near_duplicate", "joint_duplicate", "joint_r")]
+    names(pairs) <- c("exposure", "other_exposure", "correlation", "other_share_exposed", "near_duplicate", "joint_duplicate", "joint_r")
+    pairs <- pairs[order(match(pairs$exposure, exposures), match(pairs$other_exposure, exposures)), ]
+    rownames(pairs) <- NULL
+    pairs
+  }
+  # Every covariate-by-exposure correlation behind pane 1 (the plot prints no numbers).
+  correlations <- if (is.null(link)) NULL else {
+    out <- link[, c("exposure", "covariate", "correlation", "exposed_share_with", "near_duplicate", "joint_duplicate", "joint_r")]
+    out <- out[order(match(out$exposure, exposures), -abs(out$correlation)), ]
+    rownames(out) <- NULL
+    out
+  }
+  invisible(list(plot = p, roles = roles, roles_by_exposure = roles_by_exposure, table = cells,
+                 correlations = correlations, exposure_correlations = exposure_correlations))
 }
 
 #' Recommended matching models from LASSO double selection

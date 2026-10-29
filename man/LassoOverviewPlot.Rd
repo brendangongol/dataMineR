@@ -2,7 +2,7 @@
 % Please edit documentation in R/lasso-compile.R
 \name{LassoOverviewPlot}
 \alias{LassoOverviewPlot}
-\title{Overview of LassoCompile results in three panes}
+\title{Overview of LassoCompile results in two or three panes}
 \usage{
 LassoOverviewPlot(
   results,
@@ -20,6 +20,7 @@ LassoOverviewPlot(
   ShowNotSelected = FALSE,
   ColorLimitQuantile = 0.95,
   ClusterMethod = c("correlation", "signed", "none"),
+  ShowRoles = FALSE,
   Fpath = NULL,
   FileName = "LASSO_SelectionOverview.pdf",
   PrintPlot = TRUE
@@ -58,6 +59,8 @@ colour scale.}
 \item{ClusterMethod}{Row order within each role: \code{"correlation"},
 \code{"signed"} or \code{"none"}.}
 
+\item{ShowRoles}{Logical; add pane 3, the role and reason for every row.}
+
 \item{Fpath}{Optional folder to save the plot to (PDF).}
 
 \item{FileName}{File name used with \code{Fpath}.}
@@ -67,19 +70,31 @@ colour scale.}
 \value{
 Invisibly, a list: \code{plot}, \code{roles} (one overall row per
 covariate), \code{roles_by_exposure} (one row per exposure and covariate,
-used for exposure-specific matching recommendations), and \code{table}
-(the plotted cells).
+used for exposure-specific matching recommendations), \code{table}
+(the plotted cells; \code{role} is the plotted row group, with the
+exposures in \code{"Exposures"}), \code{correlations} (every covariate,
+exposures included, against every exposure, strongest first: weighted
+\code{correlation}, \code{exposed_share_with} (the share of patients with
+the covariate who are exposed), the near-duplicate flags and
+\code{joint_r}; pane 1 prints no numbers) and \code{exposure_correlations}
+(the exposure-by-exposure rows of that table: \code{correlation},
+\code{other_share_exposed}, the near-duplicate flags and \code{joint_r};
+\code{NULL} without \code{exposures}). The function writes nothing except
+the optional plot file.
 }
 \description{
 One row per covariate, so each role can be traced to its source. An
-exposure that is also a predictor of the other dependents is a row too, with
-its correlation to the other exposures in pane 1. Pane 1
+exposure that is also a predictor of the other dependents is a row too,
+pinned with the other exposures in an \code{Exposures} group at the top, in
+the order of \code{exposures}, so the exposure-by-exposure correlations form
+one block in pane 1. Pane 1
 (from the data): the covariate's weighted correlation with each exposure,
 from \code{MatchingAssumptionCheck()}. Pane 2 (from \code{LassoCompile()}): a
 bubble where a dependent's LASSO kept the covariate; colour is the
 standardized coefficient, size the bootstrap selection percentage, an
 outline marks a significant unpenalized refit and a cross an unreliable one.
-Pane 3: the role and the reason. Roles, in order: near-duplicate of the
+Optional pane 3 (\code{ShowRoles = TRUE}): the role and the reason. Without
+it the role groups label the rows on the right of pane 2. Roles, in order: near-duplicate of the
 exposure (flagged alone); near-duplicate with other codes (flagged by the
 joint rule); confounder, strong or weak (kept by an exposure LASSO and at
 least one outcome LASSO); outcome only; exposure only (a possible
