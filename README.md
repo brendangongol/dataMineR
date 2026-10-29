@@ -15,6 +15,7 @@ remotes::install_github("brendangongol/dataMineR")
 # Install optional packages used by the complete demonstration workflow:
 # remotes::install_github("brendangongol/dataMineR", dependencies = TRUE)
 ```
+<<<<<<< HEAD
 
 ## Getting started
 
@@ -60,3 +61,5 @@ roxygen2::roxygenise()
 devtools::test()
 devtools::check()
 ```
+=======
+>>>>>>> 91023d59fec5fcfe4d502f0c09aa11ccf94ea3e7
