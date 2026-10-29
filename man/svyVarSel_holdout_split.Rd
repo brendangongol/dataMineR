@@ -2,7 +2,7 @@
 % Please edit documentation in R/lasso-survey.R
 \name{svyVarSel_holdout_split}
 \alias{svyVarSel_holdout_split}
-\title{Hold out whole clusters within strata for validation}
+\title{Deprecated name for cluster-stratified holdout splitting}
 \usage{
 svyVarSel_holdout_split(
   data,
@@ -24,29 +24,19 @@ svyVarSel_holdout_split(
 
 \item{share}{Target share of clusters to hold out.}
 
-\item{min_hospitals}{Minimum clusters each side must keep in a stratum.}
+\item{min_hospitals}{Deprecated name for \code{min_clusters}.}
 
-\item{outcome}{Optional outcome column; its events are counted in the
-summary.}
+\item{outcome}{Optional numeric outcome column; its nonmissing values are
+summed in the summary.}
 
 \item{seed}{Random seed, or \code{NULL}.}
 
 \item{PrintSummary}{Logical; print the summary.}
 }
 \value{
-A list: \code{training}, \code{validation}, \code{held_out} (cluster
-IDs), \code{summary} (records, clusters, strata and events per set) and
-\code{achieved_share}.
+The same result as \code{ClusterStratifiedHoldoutSplit()}.
 }
 \description{
-Splits the data by cluster within each stratum, so no cluster is in both sets
-and both keep the survey design. In a stratum with n clusters, round(share x
-n) are held out only if both sides keep at least \code{min_hospitals}. Run
-after data preparation and before any fitting.
-}
-\examples{
-\dontrun{
-split <- svyVarSel_holdout_split(d, cluster = "cluster_id",
-  strata = "strata_id", share = 0.2, outcome = "Death_01")
-}
+Use \code{ClusterStratifiedHoldoutSplit()} for model-agnostic cluster-level
+validation splitting. This wrapper is retained for existing scripts.
 }

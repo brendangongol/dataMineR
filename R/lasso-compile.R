@@ -73,7 +73,11 @@ Lasso_FailedDependent <- function(dep, fam, predictors, error) {
 #' @param cluster Name of the cluster column.
 #' @param strata Name of the strata column.
 #' @param validation Optional held-out records for step 6.
-#' @param method,k,R Replicate-weight cross-validation settings, passed to
+#' @param method Unpenalized refit method: \code{"svyglm"} uses the survey
+#'   design, \code{"glm"} uses an ordinary weighted generalized linear model,
+#'   and \code{"lm"} uses weighted linear regression. \code{"lm"} requires
+#'   gaussian dependents.
+#' @param cv_method,k,R Replicate-weight cross-validation settings, passed to
 #'   \code{svyVarSel_wlasso_adjusted()}.
 #' @param lambda_rule \code{"min"} or \code{"1se"}.
 #' @param max_rounds Maximum lambda-grid refinements.
@@ -104,14 +108,17 @@ Lasso_FailedDependent <- function(dep, fam, predictors, error) {
 #' res <- LassoCompile(training, dependents = c("Death_01", "LOS", "sud_any_01"),
 #'   predictors = preds, family = c(LOS = "poisson"), weights = "DISCWT",
 #'   cluster = "cluster_id", strata = "strata_id", validation = validation,
-#'   Fpath = tempdir())
+#'   method = "svyglm", cv_method = "dCV", Fpath = tempdir())
 #' res$models
 #' }
 #' @export
 LassoCompile <- function(DT, dependents, predictors, family = NULL, weights, cluster, strata, validation = NULL,
-                         method = "dCV", k = 5, R = 1, lambda_rule = c("min", "1se"), max_rounds = 3, seed = 1621,
+                         method = c("svyglm", "glm", "lm"), cv_method = "dCV", k = 5, R = 1,
+                         lambda_rule = c("min", "1se"), max_rounds = 3, seed = 1621,
                          excluded_reasons = TRUE, B = 200, B_validation = 500, Fpath = NULL, checkpoint = TRUE,
                          singleton = c("fixed", "fail"), exclude_predictors = NULL) {
+  method <- match.arg(method)
+  cv_method <- match.arg(cv_method, c("dCV", "JKn", "bootstrap", "subbootstrap", "BRR", "split", "extrapolation"))
   singleton <- match.arg(singleton)
   if (is.null(exclude_predictors)) exclude_predictors <- list()
   if (length(exclude_predictors) && (is.null(names(exclude_predictors)) || any(!names(exclude_predictors) %in% dependents)))
@@ -126,7 +133,13 @@ LassoCompile <- function(DT, dependents, predictors, family = NULL, weights, clu
   if (!is.null(family) && (is.null(names(family)) || !all(names(family) %in% dependents))) {
     stop("family must be named by dependent, e.g. c(LOS = \"poisson\").")
   }
-  settings <- list(report_version = 2L, singleton = singleton, exclude_predictors = exclude_predictors, predictors = predictors, weights = weights, cluster = cluster, strata = strata, method = method, k = k, R = R,
+  dependent_families <- setNames(vapply(dependents, function(dep)
+    PS_family(DT[[dep]], if (dep %in% names(family)) family[[dep]] else NULL), character(1)), dependents)
+  if (method == "lm" && any(dependent_families != "gaussian"))
+    stop("method = 'lm' requires gaussian dependents. Non-gaussian: ",
+         paste(names(dependent_families)[dependent_families != "gaussian"], collapse = ", "))
+  settings <- list(report_version = 3L, singleton = singleton, exclude_predictors = exclude_predictors, predictors = predictors, weights = weights, cluster = cluster, strata = strata,
+                   method = method, cv_method = cv_method, k = k, R = R,
                    lambda_rule = lambda_rule, max_rounds = max_rounds, seed = seed, excluded_reasons = excluded_reasons, B = B,
                    B_validation = B_validation,
                    validation = if (is.null(validation)) NULL else Matching_Fingerprint(validation, NULL, list(), c(dependents, predictors, design_cols))$data)
@@ -134,7 +147,7 @@ LassoCompile <- function(DT, dependents, predictors, family = NULL, weights, clu
   results <- list()
   for (n_dep in seq_along(dependents)) {
     dep <- dependents[n_dep]
-    fam <- PS_family(DT[[dep]], if (dep %in% names(family)) family[[dep]] else NULL)
+    fam <- dependent_families[[dep]]
     fp <- Matching_Fingerprint(DT, data.frame(dependent = dep, family = fam), settings, c(dep, predictors, design_cols))
     saved <- Matching_CheckpointLoad(cp, n_dep, dep, fp)
     if (!is.null(saved)) {
@@ -150,7 +163,7 @@ LassoCompile <- function(DT, dependents, predictors, family = NULL, weights, clu
     dep_predictors <- setdiff(predictors, c(dep, exclude_predictors[[dep]]))
     attempt <- tryCatch(
       Lasso_OneDependent(DT, dep, fam, dep_predictors, weights, cluster, strata, validation,
-                         method, k, R, lambda_rule, max_rounds, seed, excluded_reasons, B, B_validation, singleton),
+                         method, cv_method, k, R, lambda_rule, max_rounds, seed, excluded_reasons, B, B_validation, singleton),
       error = function(e) e)
     if (inherits(attempt, "error")) {
       message("  ", dep, " failed: ", conditionMessage(attempt), "; continuing with the next dependent.")
@@ -158,6 +171,9 @@ LassoCompile <- function(DT, dependents, predictors, family = NULL, weights, clu
     } else {
       results[[dep]] <- attempt
     }
+    results[[dep]]$table$refit_method <- method
+    results[[dep]]$model$method <- method
+    results[[dep]]$model$cv_method <- cv_method
     results[[dep]]$model$excluded_by_user <- paste(exclude_predictors[[dep]], collapse="; ")
     if (!inherits(attempt, "error"))
       Matching_CheckpointSave(cp, n_dep, dep, fp, results[[dep]], NULL, NULL)
@@ -197,14 +213,14 @@ LassoCompile <- function(DT, dependents, predictors, family = NULL, weights, clu
 #' @param predictors Candidate predictors (without the dependent).
 #' @param weights,cluster,strata Design columns.
 #' @param validation Held-out records, or \code{NULL}.
-#' @param method,k,R,lambda_rule,max_rounds,seed,excluded_reasons,B,B_validation,singleton
+#' @param method,cv_method,k,R,lambda_rule,max_rounds,seed,excluded_reasons,B,B_validation,singleton
 #'   As in \code{LassoCompile()}.
 #' @return A list: \code{table}, \code{model}, \code{final_model},
 #'   \code{lambda_path}, \code{warnings}, \code{bootstrap_strata},
 #'   \code{calibration}, the step results and \code{rows}.
 #' @keywords internal
 #' @noRd
-Lasso_OneDependent <- function(DT, dep, fam, predictors, weights, cluster, strata, validation, method, k, R, lambda_rule,
+Lasso_OneDependent <- function(DT, dep, fam, predictors, weights, cluster, strata, validation, method, cv_method, k, R, lambda_rule,
                                max_rounds, seed, excluded_reasons, B, B_validation, singleton = "fixed") {
   notes <- character(0)
   warnings <- data.frame(step=character(), message=character())
@@ -227,7 +243,7 @@ Lasso_OneDependent <- function(DT, dep, fam, predictors, weights, cluster, strat
   if (length(preds) < 2L)
     stop("At least two nonconstant numeric predictors are required by glmnet; ", length(preds), " remain for ", dep, ".")
   fit <- capture("fit", suppressMessages(svyVarSel_wlasso_tune(data = d, col.y = dep, col.x = preds, family = fam, strata = strata, weights = weights,
-                                                cluster = cluster, method = method, k = k, R = R, max_rounds = max_rounds, seed = seed,
+                                                cluster = cluster, method = cv_method, k = k, R = R, max_rounds = max_rounds, seed = seed,
                                                 PrintSummary = FALSE)))
   sel <- capture("lambda selection", svyVarSel_lambda_select(fit, lambda_rule = lambda_rule, PrintSummary = FALSE))
   j <- sel$j
@@ -239,7 +255,8 @@ Lasso_OneDependent <- function(DT, dep, fam, predictors, weights, cluster, strat
     step("bootstrap", suppressMessages(svyVarSel_coef_bootstrap(fit, d, dep, weights, cluster, strata, lambda = sel$lambda, B = B,
                                                                 seed = seed, family = fam, progress_every = 0, PrintSummary = FALSE, singleton = singleton))) else NULL
   refit <- if (length(selected))
-    step("refit", svyVarSel_unpenalized_refit(fit, d, dep, weights, cluster, strata, lambda = sel$lambda, family = fam, PrintSummary = FALSE)) else NULL
+    step("refit", svyVarSel_unpenalized_refit(fit, d, dep, weights, cluster, strata, lambda = sel$lambda,
+                                               family = fam, method = method, PrintSummary = FALSE)) else NULL
   evaluation <- NULL
   if (!is.null(validation) && fam == "binomial") {
     v <- as.data.frame(validation)
@@ -288,7 +305,8 @@ Lasso_OneDependent <- function(DT, dep, fam, predictors, weights, cluster, strat
   ev <- if (is.null(evaluation)) NULL else evaluation$summary
   metric <- function(m, col) if (is.null(ev)) NA_real_ else ev[[col]][ev$metric == m]
   y <- d[[dep]]
-  model <- data.frame(dependent = dep, family = fam, records = nrow(d), hospitals = length(unique(d[[cluster]])),
+  model <- data.frame(dependent = dep, family = fam, method = method, cv_method = cv_method,
+                      records = nrow(d), hospitals = length(unique(d[[cluster]])),
                       events = if (fam == "binomial") sum(y) else NA_real_, outcome_mean = weighted.mean(y, d[[weights]]),
                       candidates = length(preds), n_selected = length(selected), lambda_rule = lambda_rule, lambda = sel$lambda,
                       lambda_position = j, n_lambdas = length(sel$grid), lambda_min_at_grid_end = sel$at_boundary,
@@ -356,14 +374,15 @@ Lasso_WriteReadme <- function(table, models, Fpath) {
     d(RA, "dependent", "The variable the LASSO predicts: an outcome, or an exposure (what predicts the exposure).", "One file per dependent."),
     d(RA, "independent", "A candidate predictor.", "Every candidate is listed, selected or not."),
     d(RA, "family", "Model type: binomial (0/1), poisson (counts, e.g. days) or gaussian (continuous).", ""),
+    d(RA, "refit_method", "Method used for the unpenalized refit: svyglm, glm or lm.", "svyglm accounts for survey clustering and strata; glm and lm do not."),
     d(RA, "selected", "TRUE if the LASSO kept this predictor at the chosen lambda.", "Selected rows come first, largest coefficient first."),
     d(RA, "lasso_coef", "LASSO coefficient at the chosen lambda (log odds for binomial, log rate for poisson, difference for gaussian), shrunk toward zero by the penalty.", "0 = left out. Its size is biased toward zero; use Estimate for effect sizes."),
     d(RA, "selected_percent", "Share (%) of bootstrap refits (hospitals resampled within strata) in which the predictor stayed in the model.", "Near 100 = stable choice; below about 70 = the selection could easily have gone the other way."),
     d(RA, "stability_lower", "2.5th percentile of the LASSO coefficient across the bootstrap refits.", "A stability range, not a confidence interval: it includes 0 when the predictor dropped out of some refits."),
     d(RA, "stability_upper", "97.5th percentile of the LASSO coefficient across the bootstrap refits.", "See stability_lower."),
-    d(RA, "Estimate", "Coefficient from the unpenalized survey-weighted refit of the selected predictors (log odds, log rate or difference).", "Blank for predictors not selected."),
-    d(RA, "Std. Error", "Standard error of Estimate (survey design-based).", ""),
-    d(RA, "Pr(>|t|)", "p-value of Estimate in the unpenalized refit.", "Ignores that the predictors were chosen from the same data, so it is somewhat too small."),
+    d(RA, "Estimate", "Coefficient from the selected unpenalized refit method (log odds, log rate or difference).", "Blank for predictors not selected."),
+    d(RA, "Std. Error", "Standard error of Estimate from the selected unpenalized refit method.", "svyglm uses survey design-based standard errors; glm and lm do not account for survey clustering or strata."),
+    d(RA, "Pr(>|t|)", "p-value of Estimate in the unpenalized refit (the legacy column name is retained for compatibility).", "glm may use a z test; svyglm and lm use their model-specific reference distribution. Selection on the same data makes this p-value optimistic."),
     d(RA, "p_fdr", "Pr(>|t|) adjusted for the number of selected predictors of this dependent (Benjamini-Hochberg).", "Below 0.05 = significant after the adjustment."),
     d(RA, "effect_measure", "Scale of effect: Odds ratio (binomial), Rate ratio (poisson: ratio of expected counts) or Difference (gaussian).", ""),
     d(RA, "effect", "The unpenalized effect on the effect_measure scale (exp(Estimate) for ratios).", "Ratios: above 1 = higher outcome with the predictor (per unit for continuous predictors). Difference: above 0 = higher."),
@@ -377,6 +396,8 @@ Lasso_WriteReadme <- function(table, models, Fpath) {
     d(RA, "excluded_reason", "For predictors not selected: the first reason that applies (overlaps with named partners, small group, reproduced by the other predictors, no association, or explained by the other predictors).", "A description, not proof of why the LASSO left it out."),
     d(M, "dependent", "The variable the LASSO predicts.", ""),
     d(M, "family", "Model type: binomial, poisson or gaussian.", ""),
+    d(M, "method", "Unpenalized refit method: svyglm, glm or lm.", "svyglm accounts for the survey design; lm is allowed only for gaussian dependents."),
+    d(M, "cv_method", "Replicate-weight method used to cross-validate the penalized LASSO.", "This is separate from method, which controls the unpenalized refit."),
     d(M, "records", "Records used: complete for the dependent, predictors and survey design.", ""),
     d(M, "hospitals", "Hospitals (clusters) in those records.", ""),
     d(M, "events", "Binomial only: records with the outcome (unweighted).", "Fewer than about 10 per selected predictor makes the model unstable."),
@@ -501,6 +522,16 @@ LassoOverviewPlot <- function(results, data, exposures = NULL, weights = NULL, S
   ClusterMethod <- match.arg(ClusterMethod)
   tab <- as.data.frame(results$table)
   data <- as.data.frame(data)
+  failed_dependents <- character()
+  if ("status" %in% names(tab))
+    failed_dependents <- c(failed_dependents, as.character(tab$dependent[tab$status == "failed"]))
+  if (!is.null(results$models) && all(c("dependent", "status") %in% names(results$models)))
+    failed_dependents <- c(failed_dependents, as.character(results$models$dependent[results$models$status == "failed"]))
+  failed_dependents <- unique(failed_dependents[!is.na(failed_dependents)])
+  if (length(failed_dependents))
+    stop("Cannot create a LASSO selection overview because these dependents failed: ",
+         paste(failed_dependents, collapse = ", "),
+         ". Review results$models$error and rerun the failed models.", call. = FALSE)
   if (!is.logical(ShowRefitMarks) || length(ShowRefitMarks) != 1L || is.na(ShowRefitMarks))
     stop("ShowRefitMarks must be TRUE or FALSE.")
   dependents <- unique(tab$dependent)

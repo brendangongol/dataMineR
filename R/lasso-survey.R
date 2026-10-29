@@ -1,3 +1,41 @@
+#' Extract stable columns from a survey design
+#'
+#' @param design A \code{survey.design} object.
+#' @return A list containing \code{data}, \code{cluster}, \code{strata} and
+#'   \code{weights}. Design values are copied into collision-safe internal
+#'   columns, so the original data symbol need not remain in scope.
+#' @keywords internal
+#' @noRd
+svyVarSel_design_data <- function(design) {
+  if (!inherits(design, c("survey.design", "survey.design2")))
+    stop("design must be created by survey::svydesign().", call. = FALSE)
+  data <- as.data.frame(design$variables)
+  internal_name <- function(stem) {
+    candidate <- stem
+    while (candidate %in% names(data)) candidate <- paste0(candidate, "_")
+    candidate
+  }
+  weights <- internal_name(".svyVarSel_weight")
+  data[[weights]] <- as.numeric(stats::weights(design))
+  cluster <- NULL
+  id_vars <- tryCatch(all.vars(design$call$id), error = function(e) character())
+  if (length(id_vars)) {
+    cluster <- internal_name(".svyVarSel_cluster")
+    cl <- as.data.frame(design$cluster)
+    data[[cluster]] <- if (ncol(cl) == 1L) cl[[1]] else
+      do.call(interaction, c(unname(as.list(cl)), list(drop = TRUE, lex.order = TRUE)))
+  }
+  strata <- NULL
+  strata_vars <- tryCatch(all.vars(design$call$strata), error = function(e) character())
+  if (length(strata_vars)) {
+    strata <- internal_name(".svyVarSel_strata")
+    st <- as.data.frame(design$strata)
+    data[[strata]] <- if (ncol(st) == 1L) st[[1]] else
+      do.call(interaction, c(unname(as.list(st)), list(drop = TRUE, lex.order = TRUE)))
+  }
+  list(data = data, cluster = cluster, strata = strata, weights = weights)
+}
+
 #' Survey-weighted LASSO with replicate-weight cross-validation
 #'
 #' A copy of \code{svyVarSel::wlasso} (svyVarSel 1.0.1; Iparragirre, Lumley,
@@ -98,13 +136,14 @@ svyVarSel_wlasso_adjusted <- function(data = NULL, col.y = NULL, col.x = NULL, c
     if (B != round(B)) stop("The argument 'B' must be an integer. B=", B, " is not an integer.\nPlease, set a valid value for 'B' or skip the argument to select the default option B=200.")
     if (B < 1) stop("The argument 'B' must be a positive integer. B=", B, " is not a positive integer.\nPlease, set a valid value for 'B' or skip the argument to select the default option B=200.")
   }
-  # If a svydesign object is given instead of column names, take cluster, strata, weights and data from it
+  # Copy design values into stable internal columns rather than evaluating the
+  # original data expression, which may no longer exist in this environment.
   if (!is.null(design)) {
-    cluster <- as.character(design$call$id[2])
-    if (cluster == "1" || cluster == "0") { cluster <- NULL }
-    strata <- as.character(design$call$strata[2])
-    weights <- as.character(design$call$weights[2])
-    data <- get(design$call$data)
+    design_data <- svyVarSel_design_data(design)
+    data <- design_data$data
+    cluster <- design_data$cluster
+    strata <- design_data$strata
+    weights <- design_data$weights
   }
 
   newdata <- utils::getFromNamespace("replicate.weights", "svyVarSel")(data = data, method = method, cluster = cluster, strata = strata,
@@ -770,22 +809,25 @@ svyVarSel_coef_bootstrap <- function(fit, data, outcome, weights, cluster, strat
                  successful = sum(successful), lambda = lambda, path = boot_path))
 }
 
-#' Unpenalized survey-weighted refit of the LASSO-selected predictors
+#' Unpenalized refit of the LASSO-selected predictors
 #'
 #' Refits the predictors selected at \code{lambda} (or \code{variables}) with
-#' \code{survey::svyglm} and reports effects with confidence intervals, plus how
-#' much the penalty shrank each coefficient. The intervals ignore that the
-#' predictors were chosen from the same data. Separation (fitted probabilities
-#' of 0 or 1, or a coefficient above 10 in absolute value) is detected and
-#' returned, because it makes the refit's effects unreliable.
+#' \code{survey::svyglm}, \code{stats::glm} or \code{stats::lm} and reports
+#' effects with confidence intervals, plus how much the penalty shrank each
+#' coefficient. The intervals ignore that the predictors were chosen from the
+#' same data. Separation (fitted probabilities of 0 or 1, or a coefficient
+#' above 10 in absolute value) is detected and returned, because it makes the
+#' refit's effects unreliable.
 #'
 #' @param fit A \code{"wlasso"} object (optional when \code{variables} is
 #'   given).
 #' @param data The training data.
 #' @param outcome Name of the outcome column.
-#' @param weights Name of the weight column.
-#' @param cluster Name of the cluster column.
-#' @param strata Name of the strata column.
+#' @param weights Name of the weight column. Required for \code{"svyglm"};
+#'   optional for \code{"glm"} and \code{"lm"}.
+#' @param cluster Name of the cluster column. Required for the usual clustered
+#'   \code{"svyglm"} fit; may be \code{NULL} for an unclustered survey design.
+#' @param strata Name of the strata column, or \code{NULL}.
 #' @param lambda Lambda whose selection is refitted; defaults to lambda.min.
 #' @param variables Predictors to refit instead of the LASSO selection.
 #' @param add_variables Predictors added to the selection.
@@ -793,6 +835,8 @@ svyVarSel_coef_bootstrap <- function(fit, data, outcome, weights, cluster, strat
 #' @param lonely_psu Value of \code{options(survey.lonely.psu)} for this fit.
 #' @param family \code{"binomial"} (odds ratios), \code{"poisson"} (rate ratios)
 #'   or \code{"gaussian"} (differences).
+#' @param method \code{"svyglm"}, \code{"glm"} or \code{"lm"}. The
+#'   \code{"lm"} method requires \code{family = "gaussian"}.
 #' @param PrintSummary Logical; print the table and comparison.
 #' @return Invisibly, a list: \code{table} (effect, limits, p-value, standard
 #'   error, LASSO and unpenalized coefficients, shrinkage ratio, shift in
@@ -803,14 +847,19 @@ svyVarSel_coef_bootstrap <- function(fit, data, outcome, weights, cluster, strat
 #' @examples
 #' \dontrun{
 #' refit <- svyVarSel_unpenalized_refit(fit, d, outcome = "Death_01",
-#'   weights = "DISCWT", cluster = "cluster_id", strata = "strata_id")
+#'   weights = "DISCWT", cluster = "cluster_id", strata = "strata_id",
+#'   method = "svyglm")
 #' refit$table
 #' }
 #' @export
-svyVarSel_unpenalized_refit <- function(fit, data, outcome, weights, cluster, strata,
+svyVarSel_unpenalized_refit <- function(fit, data, outcome, weights = NULL, cluster = NULL, strata = NULL,
                                         lambda = fit$lambda$min, variables = NULL, add_variables = NULL, level = 0.95,
-                                        lonely_psu = "adjust", family = c("binomial", "poisson", "gaussian"), PrintSummary = TRUE) {
+                                        lonely_psu = "adjust", family = c("binomial", "poisson", "gaussian"),
+                                        method = c("svyglm", "glm", "lm"), PrintSummary = TRUE) {
   family <- match.arg(family)
+  method <- match.arg(method)
+  if (method == "lm" && family != "gaussian")
+    stop("method = 'lm' requires family = 'gaussian'.")
   has_fit <- !missing(fit) && inherits(fit, "wlasso")
   if (has_fit) {
     j <- match(lambda, fit$lambda$grid)
@@ -824,16 +873,39 @@ svyVarSel_unpenalized_refit <- function(fit, data, outcome, weights, cluster, st
   variables <- unique(c(variables, add_variables))
   model_formula <- if (length(variables)) { reformulate(variables, response = outcome) } else { as.formula(paste(outcome, "~ 1")) }
   data <- as.data.frame(data)
+  needed <- c(outcome, variables, weights, if (method == "svyglm") c(cluster, strata))
+  absent <- setdiff(needed, names(data))
+  if (length(absent)) stop("Columns not found for the refit: ", paste(absent, collapse = ", "))
+  refit_weights <- if (is.null(weights)) rep(1, nrow(data)) else data[[weights]]
+  if (!is.numeric(refit_weights) || any(!is.finite(refit_weights) | refit_weights <= 0))
+    stop("Refit weights must be finite and positive.")
+  if (method == "svyglm" && is.null(weights))
+    stop("method = 'svyglm' requires a weights column.")
+  scaled_weights <- refit_weights / mean(refit_weights)
   refit <- local({
-    old_options <- options(survey.lonely.psu = lonely_psu)
-    on.exit(options(old_options))
-    design <- survey::svydesign(ids = as.formula(paste0("~", cluster)), strata = as.formula(paste0("~", strata)),
-                                weights = as.formula(paste0("~", weights)), nest = TRUE, data = data)
-    model <- survey::svyglm(model_formula, design = design, na.action = na.fail,
-                            family = switch(family, binomial = quasibinomial(), poisson = quasipoisson(), gaussian = gaussian()))
-    if (!isTRUE(model$converged)) { stop("Confidence-interval refit did not converge.") }
+    if (method == "svyglm") {
+      old_options <- options(survey.lonely.psu = lonely_psu)
+      on.exit(options(old_options))
+      id_formula <- if (is.null(cluster)) ~1 else as.formula(paste0("~", cluster))
+      strata_formula <- if (is.null(strata)) NULL else as.formula(paste0("~", strata))
+      design <- survey::svydesign(ids = id_formula, strata = strata_formula,
+                                  weights = as.formula(paste0("~", weights)), nest = TRUE, data = data)
+      model <- survey::svyglm(model_formula, design = design, na.action = na.fail,
+                              family = switch(family, binomial = quasibinomial(), poisson = quasipoisson(), gaussian = gaussian()))
+    } else {
+      model <- if (method == "glm")
+        stats::glm(model_formula, data = data, weights = scaled_weights, na.action = na.fail,
+                   family = switch(family, binomial = stats::binomial(), poisson = stats::poisson(), gaussian = stats::gaussian()))
+      else
+        stats::lm(model_formula, data = data, weights = scaled_weights, na.action = na.fail)
+    }
+    if (!is.null(model$converged) && !isTRUE(model$converged))
+      stop("Confidence-interval refit did not converge.")
+    if (any(!is.finite(stats::coef(model))) || any(!is.finite(stats::vcov(model))))
+      stop("Confidence-interval refit has non-finite or aliased coefficients or covariance.")
     coefs <- summary(model)$coefficients
-    list(model = model, limits = confint(model, level = level), se = coefs[, 2], p = coefs[, 4])
+    limits <- if (method == "glm") stats::confint.default(model, level = level) else stats::confint(model, level = level)
+    list(model = model, limits = limits, se = coefs[, 2], p = coefs[, 4])
   })
   model <- refit$model
   estimates <- coef(model)
@@ -857,9 +929,9 @@ svyVarSel_unpenalized_refit <- function(fit, data, outcome, weights, cluster, st
   separation <- list(detected = at_bounds > 0 || length(extreme) > 0, records_at_bounds = at_bounds, variables = extreme)
   comparison <- NULL
   if (has_fit) {
-    w <- data[[weights]]
+    w <- refit_weights
     lasso_lp <- as.numeric(fit$model$grid$a0[j]) + drop(as.matrix(data[, rownames(beta), drop = FALSE]) %*% beta[, 1])
-    refit_lp <- as.numeric(model$linear.predictors)
+    refit_lp <- if (method == "lm") as.numeric(stats::fitted(model)) else as.numeric(model$linear.predictors)
     kept <- !is.na(lasso_coef) & lasso_coef != 0
     comparison <- list(lp_slope = unname(coef(lm(refit_lp ~ lasso_lp, weights = w))[2]),
                        lp_correlation = stats::cov.wt(cbind(lasso_lp, refit_lp), wt = w, cor = TRUE)$cor[1, 2],
@@ -877,61 +949,111 @@ svyVarSel_unpenalized_refit <- function(fit, data, outcome, weights, cluster, st
                       separation$records_at_bounds, if (length(extreme)) paste(extreme, collapse = ", ") else "none"))
     }
   }
-  invisible(list(table = table, comparison = comparison, separation = separation, model = model, formula = model_formula))
+  invisible(list(table = table, comparison = comparison, separation = separation, model = model,
+                 formula = model_formula, method = method))
 }
 
 #' Hold out whole clusters within strata for validation
 #'
 #' Splits the data by cluster within each stratum, so no cluster is in both sets
 #' and both keep the survey design. In a stratum with n clusters, round(share x
-#' n) are held out only if both sides keep at least \code{min_hospitals}. Run
-#' after data preparation and before any fitting.
+#' n) are held out only if both sides keep at least \code{min_clusters}. The
+#' function is model-agnostic and can be used with any data set in which each
+#' cluster belongs to exactly one stratum. Run it after data preparation and
+#' before fitting, tuning, or exploratory model selection.
 #'
 #' @param data Data frame.
 #' @param cluster Name of the cluster column.
 #' @param strata Name of the strata column.
 #' @param share Target share of clusters to hold out.
-#' @param min_hospitals Minimum clusters each side must keep in a stratum.
-#' @param outcome Optional outcome column; its events are counted in the
-#'   summary.
+#' @param min_clusters Minimum clusters each side must keep in a stratum.
+#' @param outcome Optional numeric outcome column; its nonmissing values are
+#'   summed in the summary.
 #' @param seed Random seed, or \code{NULL}.
 #' @param PrintSummary Logical; print the summary.
 #' @return A list: \code{training}, \code{validation}, \code{held_out} (cluster
-#'   IDs), \code{summary} (records, clusters, strata and events per set) and
-#'   \code{achieved_share}.
+#'   IDs), \code{summary} (records, clusters, strata and outcome total per set)
+#'   and \code{achieved_share}.
 #' @examples
 #' \dontrun{
-#' split <- svyVarSel_holdout_split(d, cluster = "cluster_id",
-#'   strata = "strata_id", share = 0.2, outcome = "Death_01")
+#' split <- ClusterStratifiedHoldoutSplit(d, cluster = "site_id",
+#'   strata = "region", share = 0.2, outcome = "response")
 #' }
 #' @export
-svyVarSel_holdout_split <- function(data, cluster, strata, share = 0.2, min_hospitals = 2,
-                                    outcome = NULL, seed = 1621, PrintSummary = TRUE) {
-  if (share <= 0 || share >= 1) { stop("share must be between 0 and 1.") }
-  if (!is.null(seed)) { set.seed(seed) }
+ClusterStratifiedHoldoutSplit <- function(data, cluster, strata, share = 0.2,
+                                          min_clusters = 2, outcome = NULL,
+                                          seed = 1621, PrintSummary = TRUE) {
+  if (!is.character(cluster) || length(cluster) != 1L || is.na(cluster) || !nzchar(cluster) ||
+      !is.character(strata) || length(strata) != 1L || is.na(strata) || !nzchar(strata))
+    stop("cluster and strata must each name one column in data.")
+  if (identical(cluster, strata)) stop("cluster and strata must name different columns.")
+  if (!is.numeric(share) || length(share) != 1L || !is.finite(share) || share <= 0 || share >= 1)
+    stop("share must be one finite number between 0 and 1.")
+  if (!is.numeric(min_clusters) || length(min_clusters) != 1L || !is.finite(min_clusters) ||
+      min_clusters < 1 || min_clusters != floor(min_clusters))
+    stop("min_clusters must be one positive integer.")
+  if (!is.null(seed) && (!is.numeric(seed) || length(seed) != 1L || !is.finite(seed)))
+    stop("seed must be one finite number or NULL.")
+  if (!is.logical(PrintSummary) || length(PrintSummary) != 1L || is.na(PrintSummary))
+    stop("PrintSummary must be TRUE or FALSE.")
+
   df <- as.data.frame(data)
-  hospitals <- unique(df[, c(cluster, strata)])
-  if (anyDuplicated(hospitals[[cluster]])) { stop("A hospital (cluster) appears in more than one stratum.") }
-  by_stratum <- split(as.character(hospitals[[cluster]]), as.character(hospitals[[strata]]))
-  held_out <- unlist(lapply(by_stratum, function(ids) {
-    n_hold <- round(share * length(ids))
-    if (n_hold < min_hospitals || length(ids) - n_hold < min_hospitals) return(character(0))
-    sample(ids, n_hold)
+  if (!is.null(outcome) &&
+      (!is.character(outcome) || length(outcome) != 1L || is.na(outcome) || !nzchar(outcome)))
+    stop("outcome must name one numeric column or be NULL.")
+  absent <- setdiff(c(cluster, strata, outcome), names(df))
+  if (length(absent)) stop("Columns not found: ", paste(absent, collapse = ", "))
+  if (!is.null(outcome) && !is.numeric(df[[outcome]]))
+    stop("outcome must name one numeric column or be NULL.")
+  if (anyNA(df[[cluster]]) || anyNA(df[[strata]]))
+    stop("cluster and strata cannot contain missing values.")
+
+  if (!is.null(seed)) { set.seed(seed) }
+  clusters <- unique(df[, c(cluster, strata), drop = FALSE])
+  if (anyDuplicated(clusters[[cluster]]))
+    stop("A cluster appears in more than one stratum.")
+  by_stratum <- split(seq_len(nrow(clusters)), as.character(clusters[[strata]]))
+  held_rows <- unlist(lapply(by_stratum, function(rows) {
+    n_hold <- round(share * length(rows))
+    if (n_hold < min_clusters || length(rows) - n_hold < min_clusters) return(integer(0))
+    rows[sample.int(length(rows), n_hold)]
   }), use.names = FALSE)
-  if (!length(held_out)) { stop("No stratum has enough hospitals to hold any out; lower min_hospitals or raise share.") }
-  in_validation <- as.character(df[[cluster]]) %in% held_out
-  describe <- function(rows) c(records = sum(rows), hospitals = length(unique(df[[cluster]][rows])),
+  if (!length(held_rows))
+    stop("No stratum has enough clusters to hold any out; lower min_clusters or change share.")
+  held_out <- clusters[[cluster]][held_rows]
+  in_validation <- as.character(df[[cluster]]) %in% as.character(held_out)
+  describe <- function(rows) c(records = sum(rows), clusters = length(unique(df[[cluster]][rows])),
                                strata = length(unique(df[[strata]][rows])),
-                               events = if (is.null(outcome)) NA else sum(df[[outcome]][rows]))
+                               outcome_total = if (is.null(outcome)) NA_real_ else sum(df[[outcome]][rows], na.rm = TRUE))
   summary <- rbind(training = describe(!in_validation), validation = describe(in_validation))
-  achieved <- length(held_out) / nrow(hospitals)
+  achieved <- length(held_out) / nrow(clusters)
   if (PrintSummary) {
     print(summary)
-    message(sprintf("Held out %d of %d hospitals (%.1f%%; target %.0f%%) from %d of %d strata.", length(held_out), nrow(hospitals),
+    message(sprintf("Held out %d of %d clusters (%.1f%%; target %.0f%%) from %d of %d strata.", length(held_out), nrow(clusters),
                     100 * achieved, 100 * share, summary["validation", "strata"], length(by_stratum)))
   }
   list(training = data[!in_validation, ], validation = data[in_validation, ], held_out = held_out,
        summary = summary, achieved_share = achieved)
+}
+
+#' Deprecated name for cluster-stratified holdout splitting
+#'
+#' Use \code{ClusterStratifiedHoldoutSplit()} for model-agnostic cluster-level
+#' validation splitting. This wrapper is retained for existing scripts.
+#'
+#' @inheritParams ClusterStratifiedHoldoutSplit
+#' @param min_hospitals Deprecated name for \code{min_clusters}.
+#' @return The same result as \code{ClusterStratifiedHoldoutSplit()}.
+#' @export
+svyVarSel_holdout_split <- function(data, cluster, strata, share = 0.2,
+                                    min_hospitals = 2, outcome = NULL,
+                                    seed = 1621, PrintSummary = TRUE) {
+  .Deprecated("ClusterStratifiedHoldoutSplit")
+  ClusterStratifiedHoldoutSplit(
+    data = data, cluster = cluster, strata = strata, share = share,
+    min_clusters = min_hospitals, outcome = outcome, seed = seed,
+    PrintSummary = PrintSummary
+  )
 }
 
 #' Evaluate a fixed binomial wlasso model on held-out records

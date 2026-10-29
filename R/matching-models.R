@@ -89,42 +89,46 @@ PS_glm_fit <- function(formula, data, family = "binomial", weights = NULL, clust
 
 #' README content for matching assumption diagnostics
 #'
-#' @param table Covariate flag table.
-#' @param checks Algorithm check table.
 #' @return A data frame suitable for the README sheet of
-#'   code{Matching_CovariateFlags.xlsx}.
+#'   \code{Matching_CovariateFlags.xlsx}.
 #' @keywords internal
 #' @noRd
-MatchingAssumptionReadme <- function(table, checks) {
+MatchingAssumptionReadme <- function() {
   rows <- list()
   add <- function(section, item, meaning, interpretation = "") {
     rows[[length(rows) + 1L]] <<- data.frame(
       Section = section, Item = item, Meaning = meaning,
       Interpretation = interpretation, stringsAsFactors = FALSE)
   }
-  exposures <- unique(as.character(table$exposure))
-  estimands <- unique(as.character(table$estimand))
-  flagged <- table$flagged %in% TRUE
-  add("Run summary", "Purpose",
+  add("Workbook guide", "Purpose",
       "Pre-fit screening for marginal covariate support, exposure duplication, timing concerns, and necessary entropy-balancing feasibility.",
       "This workbook does not contain treatment-effect estimates and does not prove causal identification or joint overlap.")
-  add("Run summary", "Rows assessed", as.character(nrow(table)),
-      "One row represents one exposure x estimand x covariate combination.")
-  add("Run summary", "Exposures", paste(exposures, collapse = ", "))
-  add("Run summary", "Estimands", paste(estimands, collapse = ", "),
-      "ATT targets exposed patients; ATE targets the full population.")
-  add("Run summary", "Unique covariates", as.character(length(unique(table$variable))))
-  add("Run summary", "Flagged rows", as.character(sum(flagged)),
-      if (any(flagged)) "Review every flagged row; a flag is not an automatic instruction to remove the covariate."
-      else "No marginal flags were found. Joint overlap and post-fit balance still require assessment.")
-  if (any(flagged)) {
-    for (i in which(flagged))
-      add("Flagged results", paste(table$exposure[i], table$estimand[i], table$variable[i], sep = " | "),
-          table$action[i], "Review the covariate definition, timing, distributions, and available comparison-group support.")
-  } else {
-    add("Flagged results", "None", "Every row has action = keep and flagged = FALSE.",
-        "This is encouraging but does not establish propensity-score overlap or adequate multivariable balance.")
-  }
+  add("Workbook guide", "README", "Reusable definitions and interpretation guidance.",
+      "This sheet intentionally contains no data-set names, variable names, counts, or run-specific results.")
+  add("Workbook guide", "Flags", "One row per exposure, estimand, and candidate covariate.",
+      "Filter flagged = TRUE or action other than keep to prioritize review.")
+  add("Workbook guide", "Checks", "Procedure-level diagnostic status and supporting details.",
+      "A status is a screening result, not a treatment-effect conclusion.")
+  add("How to read the workbook", "Step 1: find flagged rows", "On the Flags sheet, filter flagged = TRUE (equivalently, action other than keep).",
+      "Rows with action = keep triggered none of the marginal rules; they still need clinical review.")
+  add("How to read the workbook", "Step 2: read the action text", "action names every reason a row was flagged, separated by semicolons.",
+      "Each reason matches a column: near_duplicate, joint_duplicate, extreme_level, post_exposure, unsupported_levels, outside_control_range, outside_exposed_range, eb_mean_outside_support, missing_n or constant.")
+  add("How to read the workbook", "Step 3: check the supporting columns", "Use correlation, exposed_share_with and exposed_share_without to see how strongly a covariate tracks the exposure.",
+      "A covariate that nearly is the exposure (|correlation| near 1, or an exposed share near 0 or 1) leaves no comparable patients and distorts the propensity model.")
+  add("How to read the workbook", "Step 4: read the Checks sheet", "Look for status = review, then read detail.",
+      "Statuses are defined in the Checks status guide below; rows that require fitted results are completed after matching, weighting or balancing.")
+  add("How to read the workbook", "Step 5: decide", "For each flagged covariate decide to keep, recode or combine levels, drop, or keep with a stated justification.",
+      "Nothing is applied automatically; the setup table is only annotated.")
+  add("How to read the workbook", "Cut-offs", "The near-duplicate, joint-duplicate, extreme-level and minimum-level-size cut-offs are arguments of MatchingAssumptionCheck() (phi_threshold, joint_min_cor, share_threshold, min_level_n; defaults 0.8, 0.3, 0.01 and 20).",
+      "The cut-offs used for a run are not stored in this workbook; record them with the analysis. Raising or lowering them changes which rows are flagged.")
+  add("Interpretation principles", "Flags are warnings", "A flag identifies an item that requires review.",
+      "It is not an automatic instruction to remove a covariate or abandon a model.")
+  add("Interpretation principles", "No flags", "No marginal rule was triggered.",
+      "This does not establish joint overlap, adequate balance, or causal identification.")
+  add("Interpretation principles", "Covariate timing", "Post-exposure status must be supplied from subject-matter knowledge.",
+      "Do not adjust for mediators or consequences of exposure without a justified estimand.")
+  add("Interpretation principles", "Pre-fit scope", "These diagnostics are evaluated before matching or weighting.",
+      "Always review fitted-model diagnostics before interpreting an effect estimate.")
   definitions <- list(
     exposure = c("The 0/1 treatment or exposure being assessed.", "Interpret every row relative to this exposure."),
     estimand = c("Target population: ATT or ATE.", "ATT is the exposed population; ATE is the full population."),
@@ -138,29 +142,48 @@ MatchingAssumptionReadme <- function(table, checks) {
     exposed_share_without = c("Weighted exposed proportion among records without the binary covariate.", "Values near 0 or 1 indicate limited comparison-group support."),
     near_duplicate = c("TRUE when |correlation| reaches the configured phi threshold.", "Usually review or exclude variables that nearly reproduce the exposure."),
     joint_duplicate = c("TRUE when several binary covariates together nearly reproduce the exposure.", "Review the group jointly rather than interpreting each code in isolation."),
-    extreme_level = c("TRUE when a sufficiently large level is almost entirely one exposure group.", "Matching or weighting may not recover unsupported comparisons."),
+    extreme_level = c("TRUE when a level with enough records is almost entirely one exposure group (exposed share near 1; near 0 also counts for ATE).", "Matching or weighting may not recover unsupported comparisons."),
     post_exposure = c("TRUE when supplied by the user as measured after exposure.", "Do not treat a mediator or consequence of exposure as a baseline confounder without a justified estimand."),
     unsupported_levels = c("Levels present in the target group but absent from the comparison group.", "Consider combining defensible levels, changing the target population, or not estimating that comparison."),
     outside_control_range = c("Exposed records outside the continuous covariate range observed in controls.", "For ATT, these exposed records lack marginal control support."),
+    outside_exposed_range = c("Control records outside the continuous covariate range observed in exposed patients.", "For ATE, these controls lack marginal exposed-group support; this direction is not required for ATT."),
     eb_mean_outside_support = c("TRUE when an entropy-balancing target mean lies outside an available group range.", "Entropy balancing may be infeasible or produce extreme weights."),
     action = c("Plain-language keep or review recommendation.", "Recommendations annotate the setup; they do not automatically remove variables."),
     flagged = c("TRUE when action is not keep.", "Filter this column first when reviewing the Flags sheet.")
   )
   for (nm in names(definitions))
     add("Flags column guide", nm, definitions[[nm]][1], definitions[[nm]][2])
-  add("Checks sheet", "checked", "The basic input check completed successfully.")
-  add("Checks sheet", "no marginal flags", "No individual covariate failed the preliminary support rules.",
+  checks_columns <- list(
+    exposure = c("The 0/1 exposure the check row refers to.", ""),
+    estimand = c("Target population: ATT or ATE.", ""),
+    algorithm = c("Approach the check applies to: All, PSM (propensity score matching), IPTW (inverse probability weighting), EB (entropy balancing) or PSM/IPTW.", "A check for an approach you are not using can be ignored."),
+    check = c("Name of the diagnostic.", ""),
+    status = c("Screening result for the check; see the Checks status guide.", "A status is not a treatment-effect conclusion."),
+    detail = c("What was examined and, where available, the numbers behind the status.", "Read this before acting on the status.")
+  )
+  for (nm in names(checks_columns))
+    add("Checks column guide", nm, checks_columns[[nm]][1], checks_columns[[nm]][2])
+  add("Checks status guide", "checked", "The basic input check completed successfully.")
+  add("Checks status guide", "diagnostic", "A value reported for information, such as the effective sample size of untrimmed implied weights.",
+      "Compare it with the review rule in detail; it is not a pass or fail.")
+  add("Checks status guide", "no range flags", "No records lie outside the common propensity-score range.",
+      "This does not establish adequate overlap across the score distribution.")
+  add("Checks status guide", "necessary marginal checks only", "No covariate failed the marginal entropy-balancing feasibility checks.",
+      "Joint feasibility and higher-moment feasibility are not tested before fitting.")
+  add("Checks status guide", "no marginal flags", "No individual covariate failed the preliminary support rules.",
       "This does not establish joint or propensity-score overlap.")
-  add("Checks sheet", "review", "The named diagnostic needs investigation before interpretation.")
-  add("Checks sheet", "requires fitted results", "The diagnostic can only be evaluated after matching or weighting.",
+  add("Checks status guide", "review", "The named diagnostic needs investigation before interpretation.")
+  add("Checks status guide", "requires fitted results", "The diagnostic can only be evaluated after matching or weighting.",
       "Inspect balance, retention, effective sample size, weight extremes, and solver warnings in the fitted results.")
-  add("Checks sheet", "not assessed", "Required inputs, such as fitted propensity scores, were not supplied.",
+  add("Checks status guide", "not assessed", "Required inputs, such as fitted propensity scores, were not supplied.",
       "This is not a failed check; complete it from the fitted model diagnostics.")
-  add("Checks sheet", "not testable from data", "The assumption cannot be established empirically.",
+  add("Checks status guide", "not testable from data", "The assumption cannot be established empirically.",
       "Causal interpretation still requires justified baseline confounders, correct timing, no unmeasured confounding, consistency, and no interference.")
-  add("Next steps", "PSM", "Inspect matched balance, exposed-patient retention, unmatched counts, and the retained target population.")
-  add("Next steps", "IPTW", "Inspect weighted balance, group effective sample sizes, propensity-score support, and maximum final weights.")
-  add("Next steps", "Entropy balancing", "Inspect solver warnings, achieved moments, residual balance, effective sample sizes, and extreme weights.")
+  add("After fitting", "Covariate balance", "Inspect balance for every adjusted covariate and relevant transformation.")
+  add("After fitting", "Target population", "Review sample retention, unmatched records, exclusions, and the population represented by the estimate.")
+  add("After fitting", "Overlap and support", "Inspect propensity-score support and unsupported observations when scores are available.")
+  add("After fitting", "Weights and precision", "When weights are used, inspect effective sample size, extreme weights, and sensitivity to trimming or stabilization.")
+  add("After fitting", "Model diagnostics", "Review convergence, solver warnings, achieved constraints, and method-specific diagnostics.")
   do.call(rbind, rows)
 }
 
@@ -220,7 +243,7 @@ MatchingAssumptionCheck <- function(data, exposure, covariates, weights = NULL, 
     stack <- function(nm) { x <- do.call(rbind, lapply(runs, `[[`, nm)); rownames(x) <- NULL; x }
     table <- stack("table"); checks <- stack("checks")
     return(invisible(list(table = table, keep = unique(unlist(lapply(runs, `[[`, "keep"))), checks = checks,
-      readme = MatchingAssumptionReadme(table, checks), by_estimand = runs,
+      readme = MatchingAssumptionReadme(), by_estimand = runs,
       ps_summary = lapply(runs, `[[`, "ps_summary"), common_support = lapply(runs, `[[`, "common_support"))))
   }
   data <- as.data.frame(data)
@@ -239,7 +262,7 @@ MatchingAssumptionCheck <- function(data, exposure, covariates, weights = NULL, 
     table <- do.call(rbind, lapply(checks, `[[`, "table"))
     check_table <- do.call(rbind, lapply(checks, `[[`, "checks"))
     return(invisible(list(table = table, keep = unique(unlist(lapply(checks, `[[`, "keep"))), by_exposure = checks,
-      checks = check_table, readme = MatchingAssumptionReadme(table, check_table),
+      checks = check_table, readme = MatchingAssumptionReadme(),
       ps_summary = lapply(checks, `[[`, "ps_summary"), common_support = lapply(checks, `[[`, "common_support"))))
   }
   covariates <- setdiff(covariates, exposure)
@@ -303,6 +326,7 @@ MatchingAssumptionCheck <- function(data, exposure, covariates, weights = NULL, 
   # Necessary marginal support checks apply to all three approaches.
   table$unsupported_levels <- ""
   table$outside_control_range <- NA_integer_
+  table$outside_exposed_range <- NA_integer_
   table$eb_mean_outside_support <- FALSE
   for (i in seq_len(nrow(table))) {
     x <- data[[table$variable[i]]]
@@ -314,6 +338,8 @@ MatchingAssumptionCheck <- function(data, exposure, covariates, weights = NULL, 
     } else if (any(ok & a==0) && any(ok & a==1)) {
       r0 <- range(x[ok & a==0]); r1 <- range(x[ok & a==1])
       table$outside_control_range[i] <- sum(ok & a==1 & (x<r0[1] | x>r0[2]),na.rm=TRUE)
+      if (estimand == "ATE")
+        table$outside_exposed_range[i] <- sum(ok & a==0 & (x<r1[1] | x>r1[2]),na.rm=TRUE)
       target <- weighted.mean(x[ok & (a==1 | estimand=="ATE")],w[ok & (a==1 | estimand=="ATE")])
       table$eb_mean_outside_support[i] <- target<r0[1] || target>r0[2] ||
         (estimand=="ATE" && (target<r1[1] || target>r1[2]))
@@ -322,6 +348,7 @@ MatchingAssumptionCheck <- function(data, exposure, covariates, weights = NULL, 
       if(table$constant[i]) "constant or entirely missing covariate",
       if(nzchar(table$unsupported_levels[i])) "levels lack comparison-group support",
       if(isTRUE(table$outside_control_range[i]>0)) "exposed observations outside control range",
+      if(isTRUE(table$outside_exposed_range[i]>0)) "control observations outside exposed range",
       if(table$eb_mean_outside_support[i]) "entropy target mean outside available range")
     if(length(issues)) table$action[i] <- paste(c(if(table$action[i]!="keep") table$action[i],paste("review:",issues)),collapse="; ")
   }
@@ -368,7 +395,7 @@ MatchingAssumptionCheck <- function(data, exposure, covariates, weights = NULL, 
     }
   }
   invisible(list(table = table, keep = keep, checks = checks,
-                 readme = MatchingAssumptionReadme(table, checks),
+                 readme = MatchingAssumptionReadme(),
                  ps_summary = ps_summary, common_support = common_support))
 }
 

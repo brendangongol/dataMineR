@@ -13,7 +13,8 @@ LassoCompile(
   cluster,
   strata,
   validation = NULL,
-  method = "dCV",
+  method = c("svyglm", "glm", "lm"),
+  cv_method = "dCV",
   k = 5,
   R = 1,
   lambda_rule = c("min", "1se"),
@@ -47,7 +48,12 @@ other outcomes use gaussian. Poisson outcomes must be named explicitly.}
 
 \item{validation}{Optional held-out records for step 6.}
 
-\item{method, k, R}{Replicate-weight cross-validation settings, passed to
+\item{method}{Unpenalized refit method: \code{"svyglm"} uses the survey
+design, \code{"glm"} uses an ordinary weighted generalized linear model,
+and \code{"lm"} uses weighted linear regression. \code{"lm"} requires
+gaussian dependents.}
+
+\item{cv_method, k, R}{Replicate-weight cross-validation settings, passed to
 \code{svyVarSel_wlasso_adjusted()}.}
 
 \item{lambda_rule}{\code{"min"} or \code{"1se"}.}
@@ -104,7 +110,7 @@ its own complete records. A step that fails is recorded in the Model sheet's
 res <- LassoCompile(training, dependents = c("Death_01", "LOS", "sud_any_01"),
   predictors = preds, family = c(LOS = "poisson"), weights = "DISCWT",
   cluster = "cluster_id", strata = "strata_id", validation = validation,
-  Fpath = tempdir())
+  method = "svyglm", cv_method = "dCV", Fpath = tempdir())
 res$models
 }
 }

@@ -179,22 +179,23 @@ PS_SetupExamples <- function(DT, setup) {
 #' @param setup Setup table.
 #' @param DT Data frame (for the example rows).
 #' @param Fpath Output folder.
-#' @param examples Logical; append the example rows.
-#' @return Invisibly, the setup written.
+#' @param examples Logical; write example rows to a separate Examples sheet.
+#' @return Invisibly, the executable Setup sheet written.
 #' @keywords internal
 #' @noRd
 PS_WriteSetup <- function(setup, DT, Fpath, examples = TRUE) {
   dir.create(Fpath, recursive=TRUE, showWarnings=FALSE)
   file <- file.path(Fpath, "Matching_RegressionSetup.xlsx")
+  extra <- NULL
   if (examples) {
     extra <- PS_SetupExamples(DT, setup)
     extra$ModelID <- tail(make.unique(c(as.character(setup$ModelID), as.character(extra$ModelID))), nrow(extra))
-    setup <- as.data.frame(data.table::rbindlist(list(setup, extra), fill=TRUE))
   }
   flag_columns <- intersect(c("flagged_covariates", "covariate_flags"), names(setup))
   if (all(vapply(setup[flag_columns], function(x) all(is.na(x) | trimws(as.character(x)) == ""), logical(1))))
     setup[flag_columns] <- NULL
   sheets <- list(Setup=setup)
+  if (!is.null(extra)) sheets$Examples <- extra
   wb <- openxlsx::createWorkbook()
   for (nm in names(sheets)) {
     openxlsx::addWorksheet(wb, nm)
@@ -233,9 +234,11 @@ PS_WriteSetup <- function(setup, DT, Fpath, examples = TRUE) {
 #' @param flags Optional \code{MatchingAssumptionCheck()$table} to annotate the
 #'   rows (nothing is removed).
 #' @param Fpath Optional output folder.
-#' @param examples Logical; append example rows to the written file.
+#' @param examples Logical; write illustrative rows to a separate Examples
+#'   sheet. Example rows are never included in the executable Setup sheet.
 #' @param recommended Optional rows from \code{MatchingSetupFromLasso()}.
-#' @return The setup data frame (with the example rows when written).
+#' @return The executable setup data frame. Example rows are only written to the
+#'   workbook's Examples sheet.
 #' @examples
 #' \dontrun{
 #' setup <- MatchingRegressionSetup(model_dt, dependents = c("Death_01", "LOS"),

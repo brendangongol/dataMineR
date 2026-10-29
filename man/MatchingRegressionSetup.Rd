@@ -44,12 +44,14 @@ rows (nothing is removed).}
 
 \item{Fpath}{Optional output folder.}
 
-\item{examples}{Logical; append example rows to the written file.}
+\item{examples}{Logical; write illustrative rows to a separate Examples
+sheet. Example rows are never included in the executable Setup sheet.}
 
 \item{recommended}{Optional rows from \code{MatchingSetupFromLasso()}.}
 }
 \value{
-The setup data frame (with the example rows when written).
+The executable setup data frame. Example rows are only written to the
+workbook's Examples sheet.
 }
 \description{
 One row per dependent x independent x matching specification: each matching

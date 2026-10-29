@@ -2,21 +2,22 @@
 % Please edit documentation in R/lasso-survey.R
 \name{svyVarSel_unpenalized_refit}
 \alias{svyVarSel_unpenalized_refit}
-\title{Unpenalized survey-weighted refit of the LASSO-selected predictors}
+\title{Unpenalized refit of the LASSO-selected predictors}
 \usage{
 svyVarSel_unpenalized_refit(
   fit,
   data,
   outcome,
-  weights,
-  cluster,
-  strata,
+  weights = NULL,
+  cluster = NULL,
+  strata = NULL,
   lambda = fit$lambda$min,
   variables = NULL,
   add_variables = NULL,
   level = 0.95,
   lonely_psu = "adjust",
   family = c("binomial", "poisson", "gaussian"),
+  method = c("svyglm", "glm", "lm"),
   PrintSummary = TRUE
 )
 }
@@ -28,11 +29,13 @@ given).}
 
 \item{outcome}{Name of the outcome column.}
 
-\item{weights}{Name of the weight column.}
+\item{weights}{Name of the weight column. Required for \code{"svyglm"};
+optional for \code{"glm"} and \code{"lm"}.}
 
-\item{cluster}{Name of the cluster column.}
+\item{cluster}{Name of the cluster column. Required for the usual clustered
+\code{"svyglm"} fit; may be \code{NULL} for an unclustered survey design.}
 
-\item{strata}{Name of the strata column.}
+\item{strata}{Name of the strata column, or \code{NULL}.}
 
 \item{lambda}{Lambda whose selection is refitted; defaults to lambda.min.}
 
@@ -47,6 +50,9 @@ given).}
 \item{family}{\code{"binomial"} (odds ratios), \code{"poisson"} (rate ratios)
 or \code{"gaussian"} (differences).}
 
+\item{method}{\code{"svyglm"}, \code{"glm"} or \code{"lm"}. The
+\code{"lm"} method requires \code{family = "gaussian"}.}
+
 \item{PrintSummary}{Logical; print the table and comparison.}
 }
 \value{
@@ -59,16 +65,18 @@ and \code{formula}.
 }
 \description{
 Refits the predictors selected at \code{lambda} (or \code{variables}) with
-\code{survey::svyglm} and reports effects with confidence intervals, plus how
-much the penalty shrank each coefficient. The intervals ignore that the
-predictors were chosen from the same data. Separation (fitted probabilities
-of 0 or 1, or a coefficient above 10 in absolute value) is detected and
-returned, because it makes the refit's effects unreliable.
+\code{survey::svyglm}, \code{stats::glm} or \code{stats::lm} and reports
+effects with confidence intervals, plus how much the penalty shrank each
+coefficient. The intervals ignore that the predictors were chosen from the
+same data. Separation (fitted probabilities of 0 or 1, or a coefficient
+above 10 in absolute value) is detected and returned, because it makes the
+refit's effects unreliable.
 }
 \examples{
 \dontrun{
 refit <- svyVarSel_unpenalized_refit(fit, d, outcome = "Death_01",
-  weights = "DISCWT", cluster = "cluster_id", strata = "strata_id")
+  weights = "DISCWT", cluster = "cluster_id", strata = "strata_id",
+  method = "svyglm")
 refit$table
 }
 }

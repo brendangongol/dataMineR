@@ -386,7 +386,7 @@ model_dt[, strata_id := paste(YEAR, NIS_STRATUM, sep = "_")]
 model_dt[, cluster_id := paste(YEAR, HOSP_NIS, sep = "_")]
 #### Hold out 20% of hospitals within strata for validation, before any fitting, tuning or exploration ####
 #### lasso_ready_df (training) and validation_df (held out) come from the same prepared data; no hospital is in both. ####
-holdout <- svyVarSel_holdout_split(model_dt, cluster = "cluster_id", strata = "strata_id", share = 0.2, outcome = outcome_vars[1], seed = 1621)
+holdout <- ClusterStratifiedHoldoutSplit(model_dt, cluster = "cluster_id", strata = "strata_id", share = 0.2, outcome = outcome_vars[1], seed = 1621)
 #### Convert to data frame ####
 lasso_ready_df <- as.data.frame(holdout$training)
 validation_df <- as.data.frame(holdout$validation)
@@ -509,7 +509,8 @@ LassoResults <- LassoCompile(DT = lasso_ready_df,
                              family = c(LOS = "gaussian"),       # match the Linear LOS outcome model below; Poisson outcomes must be explicit
                              weights = "DISCWT", cluster = "cluster_id", strata = "strata_id",
                              validation = validation_df,         # held-out hospitals; binomial dependents only for now
-                             method = "dCV", k = 5, R = 1,       # replicate-weight cross-validation
+                             method = "svyglm",                  # unpenalized refit: "glm", "svyglm" or "lm"; lm requires gaussian outcomes
+                             cv_method = "dCV", k = 5, R = 1,    # replicate-weight cross-validation
                              lambda_rule = "min",                # "min" = lowest CV error; "1se" = sparser model
                              max_rounds = 3,                     # lambda-grid refinements until lambda.min is inside the grid
                              seed = 1621,
@@ -622,8 +623,7 @@ Positivity <- MatchingAssumptionCheck(model_dt, exposure = exposure_var, covaria
                                       weights = "DISCWT", post_exposure = NULL,  # Supply column names here when timing is known.
                                       estimand = c("ATT", "ATE"),                # ATT for matching / EB, ATE for IPTW
                                       IPTWSampleSizeMinimum = 0.10)
-openxlsx::write.xlsx(list(README = Positivity$readme, Flags = Positivity$table, Checks = Positivity$checks),
-                    file.path(MatchingSetupPath, "Matching_CovariateFlags.xlsx"), colWidths = "auto")
+openxlsx::write.xlsx(list(README = Positivity$readme, Flags = Positivity$table, Checks = Positivity$checks), file.path(MatchingSetupPath, "Matching_CovariateFlags.xlsx"))
 
 #################################################
 #### Set up matching regression combinations ####
@@ -636,7 +636,7 @@ RegressionSetup <- MatchingRegressionSetup(DT = model_dt,
                                            joint = TRUE,
                                            method = "svyglm", # "glm", "svyglm" or "lm"
                                            type = c(LOS = "Linear"),
-                                           flags = Positivity$table, Fpath = MatchingSetupPath, examples = TRUE, # flags annotate; never remove
+                                           flags = Positivity$table, Fpath = MatchingSetupPath, examples = TRUE, # examples go to a separate, non-executable sheet
                                            recommended = RecommendedModels)   # LASSO double-selection rows (LASSO_1, ...), placed first
 
 #########################################
