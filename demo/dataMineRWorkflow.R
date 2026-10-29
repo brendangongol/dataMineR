@@ -616,7 +616,6 @@ CandidateCovariates <- setdiff(pred_vars, exposure_var)
 BalanceCovariates <- unique(c(CandidateCovariates, unlist(dummy_groups), "YEAR"))
 BalanceCovariates <- intersect(BalanceCovariates, names(model_dt))
 MatchingSetupPath <- file.path(WritePath, DirName)   # flag and setup files; results go in subfolders below
-RegressionSetupFile <- file.path(MatchingSetupPath, "Matching_RegressionSetup.xlsx")   # the setup workbook you edit; written and read back below
 # dir.create(MatchingSetupPath, recursive = TRUE, showWarnings = FALSE)
 
 #### Flag overlap and timing concerns; preserve every candidate ####
@@ -640,14 +639,14 @@ RegressionSetup <- MatchingRegressionSetup(DT = model_dt,
                                            flags = Positivity$table,          # flags annotate; never remove
                                            examples = TRUE,                   # adds example rows (see Notes) at the end of the same sheet; delete any you do not want to run
                                            recommended = RecommendedModels)   # LASSO double-selection rows (LASSO_1, ...), placed first
-openxlsx::write.xlsx(list(Setup = RegressionSetup), RegressionSetupFile, colWidths = "auto")   # edit this file, then read it back below; rerunning this line overwrites your edits
+openxlsx::write.xlsx(list(Setup = RegressionSetup), file.path(MatchingSetupPath, "Matching_RegressionSetup.xlsx"), colWidths = "auto")   # edit this file, then read it back below; rerunning this line overwrites your edits
 
 #########################################
 #### Propensity score matching setup ####
 #########################################
 MatchingPath <- file.path(WritePath, DirName, "PropensityScore")
 dir.create(MatchingPath, recursive = TRUE, showWarnings = FALSE)
-RegressionSetup <- openxlsx::read.xlsx(RegressionSetupFile, sheet = "Setup")   # rerun from here after editing
+RegressionSetup <- openxlsx::read.xlsx(file.path(MatchingSetupPath, "Matching_RegressionSetup.xlsx"), sheet = "Setup")   # rerun from here after editing
 
 #############################
 #### perform PS matching ####
@@ -697,7 +696,7 @@ openxlsx::write.xlsx(list(OverviewTable = PSBubblePlot[["Table"]], Labels = PSBu
 #######################################################
 IPTWPath <- file.path(WritePath, DirName, "IPTW")
 dir.create(IPTWPath, recursive = TRUE, showWarnings = FALSE)
-IPTWSetup <- openxlsx::read.xlsx(RegressionSetupFile, sheet = "Setup")
+IPTWSetup <- openxlsx::read.xlsx(file.path(MatchingSetupPath, "Matching_RegressionSetup.xlsx"), sheet = "Setup")
 
 #############################################
 #### perform IPTW followed by regression ####
@@ -747,7 +746,7 @@ openxlsx::write.xlsx(list(OverviewTable = IPTWBubblePlot[["Table"]], Labels = IP
 ###########################
 EBPath <- file.path(WritePath, DirName, "EntropyBalancing")
 dir.create(EBPath, recursive = TRUE, showWarnings = FALSE)
-EBSetup <- openxlsx::read.xlsx(RegressionSetupFile, sheet = "Setup")
+EBSetup <- openxlsx::read.xlsx(file.path(MatchingSetupPath, "Matching_RegressionSetup.xlsx"), sheet = "Setup")
 
 #########################################################
 #### perform entropy balancing followed by regression ####
