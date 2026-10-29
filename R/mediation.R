@@ -17,7 +17,7 @@
 #'   ACME/ADE/total-effect/proportion-mediated table).
 #' @examples
 #' \dontrun{
-#' data(dfMigrant)
+#' load(system.file("extdata", "dfMigrant.rda", package = "dataMineR"))
 #' MediationTable <- data.table::data.table(
 #'   DependentVariable = "ICUadmission", IndependentVariable = "Migrant",
 #'   PutativeMediator = "hpi2score")
@@ -132,7 +132,7 @@ MediationTestR <- function(DT, MediationTable){
 #'   compiled table of specific indirect-effect significance per mediator).
 #' @examples
 #' \dontrun{
-#' data(dfMigrant)
+#' load(system.file("extdata", "dfMigrant.rda", package = "dataMineR"))
 #' dt <- dfMigrant[!is.na(economic) & !is.na(education) & !is.na(housing), ]
 #' MultiMediationPLSR(dt, Treatment = "Migrant",
 #'                     Mediators = c("economic", "education", "housing"),

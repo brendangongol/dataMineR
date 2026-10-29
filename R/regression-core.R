@@ -432,7 +432,7 @@ univariantglmR <- function(DT, key, significant, type = "Logistic", AUC = TRUE, 
 #'   every dependent, including a \code{p_fdr} column.
 #' @examples
 #' \dontrun{
-#' data(dfMigrant)
+#' load(system.file("extdata", "dfMigrant.rda", package = "dataMineR"))
 #' RegressionCompile(DT = dfMigrant, dependents = "Age",
 #'                    independents = c("COMORBIDITYINDEX", "hpi2score"),
 #'                    Fpath = tempdir(), type = "Linear")

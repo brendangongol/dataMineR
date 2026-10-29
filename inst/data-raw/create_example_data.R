@@ -1,9 +1,12 @@
 ################################################################################
-#### data-raw/create_example_data.R ############################################
-#### Builds the package's example datasets and saves them to data/*.rda via ####
-#### usethis::use_data(). Re-run this script (from the package root, e.g.   ####
-#### with devtools::load_all() or source()) whenever the generation logic   ####
-#### below changes; it is not run automatically at install/build time.     ####
+#### inst/data-raw/create_example_data.R #######################################
+#### Builds the package's example datasets and saves them to                ####
+#### inst/extdata/<name>.rda (one object per file, named like the file).    ####
+#### Re-run this script from the package root (e.g. with devtools::load_all ####
+#### or source()) whenever the generation logic below changes; it is not    ####
+#### run automatically at install/build time. After installing, load a      ####
+#### dataset with                                                           ####
+####   load(system.file("extdata", "dfMigrant.rda", package = "dataMineR")) ####
 ################################################################################
 ################################################################################
 #### Create Synthetic COPD/OSA biomarker dataset for package demonstration #####
@@ -528,7 +531,7 @@ set.seed(42)
 egs_misc_1621 <- make_egs(N = 40000, hospitals_per_year = 150, n_strata = 12, n_singleton_strata = 4, hospital_id_start = 10000)
 
 ################################################################################
-#### Save every example dataset into data/*.rda ####
+#### Save every example dataset into inst/extdata/*.rda ####
 #### Save as data.table so the demo can use data.table syntax directly. Public ####
 #### package functions also coerce ordinary data.frames at their boundaries.   ####
 ################################################################################
@@ -541,12 +544,7 @@ data.table::setDT(MData)
 data.table::setDT(nhanes_like)
 data.table::setDT(egs_misc_1621)
 
-usethis::use_data(copd_data, overwrite = TRUE)
-usethis::use_data(dfMigrant, overwrite = TRUE)
-usethis::use_data(cardiac_data, overwrite = TRUE)
-usethis::use_data(dream_data, overwrite = TRUE)
-usethis::use_data(peru_data, overwrite = TRUE)
-usethis::use_data(MData, overwrite = TRUE)
-usethis::use_data(nhanes_like, overwrite = TRUE)
-usethis::use_data(egs_misc_1621, overwrite = TRUE)
-
+dir.create("inst/extdata", recursive = TRUE, showWarnings = FALSE)
+for (nm in c("copd_data", "dfMigrant", "cardiac_data", "dream_data", "peru_data", "MData", "nhanes_like", "egs_misc_1621")) {
+  save(list = nm, file = file.path("inst/extdata", paste0(nm, ".rda")), compress = "bzip2")
+}

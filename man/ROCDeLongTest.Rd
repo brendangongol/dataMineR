@@ -49,7 +49,7 @@ DeLong's test comparing the two AUCs.
 }
 \examples{
 \dontrun{
-data(dream_data)
+load(system.file("extdata", "dream_data.rda", package = "dataMineR"))
 ROCDeLongTest(DataList = list(Dream = dream_data), DepVariable = "opioids",
                IndVariable1 = "ahi", IndVariable2 = "rdi",
                paired = TRUE, Direction = "<")

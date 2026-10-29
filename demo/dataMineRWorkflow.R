@@ -27,6 +27,8 @@ suppressPackageStartupMessages({
 #### Override these with DATAMINER_OUTPUT_DIR / DATAMINER_WORKFLOW_NAME. ####
 WritePath <- Sys.getenv("DATAMINER_OUTPUT_DIR", unset = getwd())
 DirName   <- Sys.getenv("DATAMINER_WORKFLOW_NAME", unset = "dataMineRWorkflow-results")
+ExampleDataDir <- system.file("extdata", package = "dataMineR")   #### folder of the bundled example datasets (<name>.rda); the script that builds them is in system.file("data-raw", package = "dataMineR") ####
+if (!nzchar(ExampleDataDir)) stop("The dataMineR example data folder was not found; reinstall the package.")
 WorkflowSeed <- suppressWarnings(as.integer(Sys.getenv("DATAMINER_SEED", unset = "2026")))
 if (length(WorkflowSeed) != 1L || is.na(WorkflowSeed)) {
   stop("DATAMINER_SEED must be a valid integer.")
@@ -44,7 +46,7 @@ OutputDir <- ensure_dir(file.path(WritePath, DirName))
 ##############################
 #### Load example dataset ####
 ##############################
-data(dfMigrant, package = "dataMineR")
+load(file.path(ExampleDataDir, "dfMigrant.rda"))   # creates dfMigrant
 dt <- as.data.table(copy(dfMigrant))
 GroupBy <- "Migrant"  #### primary two-group comparison variable for the Table 1 / bubble-plot pipeline ####
 NonAnalysisCols <- c("MRN", "CSN", "DateofDeath", "DateofAdmission", "DateofDischarge",
@@ -357,7 +359,7 @@ pred_vars   <- c("sud_any_01", "white_01", "hispanic_01", "black_01", "other_rac
                                                                                      "hypothy", "rf", "ld", "pud", "aids", "lymph", "metacanc", "solidtum", "rheumd",
                                                                                      "coag", "obes", "wloss", "fed", "blane", "dane", "alcohol", "drug", "psycho", "depre")))
 
-data(egs_misc_1621, package = "dataMineR")   #### Synthetic stand-in bundled with the package (see ?egs_misc_1621)
+load(file.path(ExampleDataDir, "egs_misc_1621.rda"))   #### creates egs_misc_1621: synthetic stand-in bundled with the package (see ?egs_misc_1621)
 model_dt <- as.data.table(egs_misc_1621)[, c(outcome_vars, pred_vars, "NIS_STRATUM", "HOSP_NIS", "DISCWT", "YEAR"), with = FALSE]
 
 #######################
@@ -907,7 +909,7 @@ PowerAnalysisR(test = "summary_means", mu1 = 3.4, mu2 = 2.8, sd1 = 3.5, sd2 = 3.
 #########################################################################################
 #### ROC threshold sweep, DeLong ROC comparison, and Bland-Altman agreement analysis ####
 #########################################################################################
-data(dream_data, peru_data, copd_data, package = "dataMineR")
+for (f in c("dream_data.rda", "peru_data.rda", "copd_data.rda")) load(file.path(ExampleDataDir, f))   # creates dream_data, peru_data and copd_data
 dtDream <- as.data.table(dream_data)
 ThresholdSweep <- ThresholdSweepAUCR(dt = dtDream, Outcome = "opioids", Predictor = "ahi", Direction = "ge")
 ThresholdSweep[["Plot"]]

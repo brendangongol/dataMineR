@@ -27,7 +27,7 @@ reference level in \code{\link{RegressionCompile}}.
 }
 \examples{
 \dontrun{
-data(dfMigrant)
+load(system.file("extdata", "dfMigrant.rda", package = "dataMineR"))
 CategoricalVariableCreate(dfMigrant, c("Migrant", "Homeless", "Sex"))
 }
 }

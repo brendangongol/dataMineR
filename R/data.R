@@ -12,12 +12,14 @@
 #'   (\code{AHI}, \code{sao2}), labs (\code{CRP}, \code{hemoglobin},
 #'   \code{leukocytes}, \code{cholesterol}), and patient-reported/functional
 #'   measures (\code{CAT}, \code{distance_6min}, \code{active_smoker}).
-#' @source Randomly generated; see \code{data-raw/create_example_data.R}.
+#' @source Randomly generated; see \code{inst/data-raw/create_example_data.R}.
 #' @examples
-#' data(copd_data)
+#' load(system.file("extdata", "copd_data.rda", package = "dataMineR"))
 #' PCAPlotR(copd_data, features = c("FEV1", "FVC", "sao2", "AHI"),
 #'          GroupCol = "group")
-"copd_data"
+#' @name copd_data
+#' @keywords datasets
+NULL
 
 #' Synthetic migrant-status sepsis cohort dataset
 #'
@@ -35,11 +37,13 @@
 #'   (\code{InhospitalMortality}, \code{mortality30day}, \code{mortality90day},
 #'   \code{ICUadmission}); and neighborhood social-deprivation indices
 #'   (\code{hpi2score}, \code{economic}, \code{education}, \code{housing}, ...).
-#' @source Randomly generated; see \code{data-raw/create_example_data.R}.
+#' @source Randomly generated; see \code{inst/data-raw/create_example_data.R}.
 #' @examples
-#' data(dfMigrant)
+#' load(system.file("extdata", "dfMigrant.rda", package = "dataMineR"))
 #' InitialTablebg(dfMigrant, GroupBy = "Migrant", p_values = TRUE)
-"dfMigrant"
+#' @name dfMigrant
+#' @keywords datasets
+NULL
 
 #' Synthetic cardiac arrest resuscitation dataset
 #'
@@ -53,8 +57,10 @@
 #'   \code{defib_attempts}), arrest characteristics (\code{Etiology},
 #'   \code{OHCA}, \code{IHCA_subsequent}), and outcomes (\code{ROSC},
 #'   \code{Survival to DC}, \code{CPC score}).
-#' @source Randomly generated; see \code{data-raw/create_example_data.R}.
-"cardiac_data"
+#' @source Randomly generated; see \code{inst/data-raw/create_example_data.R}.
+#' @name cardiac_data
+#' @keywords datasets
+NULL
 
 #' Synthetic opioid-use polysomnography (PSG) dataset
 #'
@@ -69,12 +75,14 @@
 #'   (\code{spo2_mean}, \code{spo2_nadir}); daytime sleepiness (\code{eds},
 #'   \code{ess_ini}); and PAP-therapy adherence metrics
 #'   (\code{days_fu_cpap}, \code{percent_days_4h}, \code{pressure_median_resmed}, ...).
-#' @source Randomly generated; see \code{data-raw/create_example_data.R}.
+#' @source Randomly generated; see \code{inst/data-raw/create_example_data.R}.
 #' @examples
-#' data(dream_data)
+#' load(system.file("extdata", "dream_data.rda", package = "dataMineR"))
 #' ThresholdSweepAUCR(dream_data, Outcome = "opioids", Predictor = "ahi",
 #'                     Direction = "ge")
-"dream_data"
+#' @name dream_data
+#' @keywords datasets
+NULL
 
 #' Synthetic Peru high-altitude cognition dataset
 #'
@@ -92,13 +100,15 @@
 #'   (\code{fvc_actual}, \code{fev1_actual}); sleep-study metrics
 #'   (\code{ahi_b}, \code{nadir_spo2}, \code{totalahi}); and cognitive-task
 #'   outputs (\code{pvt_medianrt}, \code{tmta_sec}, \code{accuracy}, ...).
-#' @source Randomly generated; see \code{data-raw/create_example_data.R}.
+#' @source Randomly generated; see \code{inst/data-raw/create_example_data.R}.
 #' @examples
-#' data(peru_data)
+#' load(system.file("extdata", "peru_data.rda", package = "dataMineR"))
 #' BlandAltman(DataList = list(Peru = peru_data), Var1 = "hcto_1",
 #'             Var2 = "hcto_2", SigLevel = 0.95, ColorFeature = FALSE,
 #'             ColorBy = NA, ScaleData = FALSE)
-"peru_data"
+#' @name peru_data
+#' @keywords datasets
+NULL
 
 #' SmartPill gastric-motility dataset with derived group/demographic labels
 #'
@@ -111,8 +121,10 @@
 #'   \code{\link[medicaldata]{smartpill}} for the source column
 #'   definitions; \code{group}, \code{sex}, \code{race}, and \code{bmi} are
 #'   added here.
-#' @source \pkg{medicaldata}; see \code{data-raw/create_example_data.R}.
-"MData"
+#' @source \pkg{medicaldata}; see \code{inst/data-raw/create_example_data.R}.
+#' @name MData
+#' @keywords datasets
+NULL
 
 #' NHANES adults subset with a derived diabetes/smoking group
 #'
@@ -124,8 +136,10 @@
 #'   \code{\link[NHANES]{NHANES}} for the source column definitions;
 #'   \code{group} (one of \code{"DIABETIC_SMOKER"}, \code{"DIABETIC_NONSMOKER"},
 #'   \code{"HEALTHY"}, \code{"SMOKER_ONLY"}) is added here.
-#' @source \pkg{NHANES}; see \code{data-raw/create_example_data.R}.
-"nhanes_like"
+#' @source \pkg{NHANES}; see \code{inst/data-raw/create_example_data.R}.
+#' @name nhanes_like
+#' @keywords datasets
+NULL
 
 #' Synthetic emergency general surgery survey dataset
 #'
@@ -170,11 +184,13 @@
 #'   \item{complic_respiratory, complic_cardiac, complic_renal}{Postoperative
 #'     complication indicators (0/1).}
 #' }
-#' @source Randomly generated; see \code{data-raw/create_example_data.R}.
+#' @source Randomly generated; see \code{inst/data-raw/create_example_data.R}.
 #' @examples
-#' data(egs_misc_1621)
+#' load(system.file("extdata", "egs_misc_1621.rda", package = "dataMineR"))
 #' d <- egs_misc_1621
 #' d$strata_id <- paste(d$YEAR, d$NIS_STRATUM, sep = "_")
 #' d$cluster_id <- paste(d$YEAR, d$HOSP_NIS, sep = "_")
 #' table(d$sud_any_01, d$elix_drug | d$elix_alcohol)
-"egs_misc_1621"
+#' @name egs_misc_1621
+#' @keywords datasets
+NULL

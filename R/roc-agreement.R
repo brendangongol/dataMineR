@@ -26,7 +26,7 @@
 #'   predictors), \code{Plots}, and \code{PlotNames}.
 #' @examples
 #' \dontrun{
-#' data(dream_data)
+#' load(system.file("extdata", "dream_data.rda", package = "dataMineR"))
 #' ROCDeLongTest(DataList = list(Dream = dream_data), DepVariable = "opioids",
 #'                IndVariable1 = "ahi", IndVariable2 = "rdi",
 #'                paired = TRUE, Direction = "<")
@@ -107,7 +107,7 @@ ROCDeLongTest <- function(DataList, DepVariable, IndVariable1, IndVariable2, pai
 #'   \code{BAPlotFeature} (the colored mean-difference plot).
 #' @examples
 #' \dontrun{
-#' data(peru_data)
+#' load(system.file("extdata", "peru_data.rda", package = "dataMineR"))
 #' BlandAltman(DataList = list(Peru = peru_data), Var1 = "hcto_1",
 #'             Var2 = "hcto_2", SigLevel = 0.95, ColorFeature = FALSE,
 #'             ColorBy = NA, ScaleData = FALSE)
@@ -232,7 +232,7 @@ FeatureROCAnalysis <- function(DataList, DepVariable, SubsetVar, CompDT){
 #'   \code{AUC}, \code{N}) and \code{Plot} (a ggplot of AUC vs. cutoff).
 #' @examples
 #' \dontrun{
-#' data(dream_data)
+#' load(system.file("extdata", "dream_data.rda", package = "dataMineR"))
 #' ThresholdSweepAUCR(dream_data, Outcome = "opioids", Predictor = "ahi",
 #'                     Direction = "ge")
 #' }

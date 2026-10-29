@@ -191,7 +191,7 @@ cliffs_delta_report <- function(x, y, wilcox_result){
 #'   results across every row of \code{CatTable}.
 #' @examples
 #' \dontrun{
-#' data(dfMigrant)
+#' load(system.file("extdata", "dfMigrant.rda", package = "dataMineR"))
 #' CatTable <- CategoricalVariableCreate(dfMigrant, c("Migrant", "Homeless"))
 #' continuous_compare_Compile(dfMigrant, ContinuousCols = "Age",
 #'                             CatTable = CatTable, Fpath = tempdir())

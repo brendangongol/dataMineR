@@ -65,7 +65,7 @@ dataMineR workflow.
 }
 \examples{
 \dontrun{
-data(dfMigrant)
+load(system.file("extdata", "dfMigrant.rda", package = "dataMineR"))
 RegressionCompile(DT = dfMigrant, dependents = "Age",
                    independents = c("COMORBIDITYINDEX", "hpi2score"),
                    Fpath = tempdir(), type = "Linear")

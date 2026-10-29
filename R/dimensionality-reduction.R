@@ -18,7 +18,7 @@
 #'   object).
 #' @examples
 #' \dontrun{
-#' data(copd_data)
+#' load(system.file("extdata", "copd_data.rda", package = "dataMineR"))
 #' PCAPlotR(copd_data, features = c("FEV1", "FVC", "sao2", "AHI"),
 #'          GroupCol = "group")
 #' }
@@ -72,7 +72,7 @@ PCAPlotR <- function(dt, features, GroupCol = NULL, LabelCol = NULL, ScaleData =
 #'   object).
 #' @examples
 #' \dontrun{
-#' data(copd_data)
+#' load(system.file("extdata", "copd_data.rda", package = "dataMineR"))
 #' UMAPPlotR(copd_data, features = c("FEV1", "FVC", "sao2", "AHI"),
 #'           GroupCol = "group")
 #' }
@@ -124,7 +124,7 @@ UMAPPlotR <- function(dt, features, GroupCol = NULL, LabelCol = NULL, ScaleData 
 #' @return A \code{ggmatrix} object (from \pkg{GGally}).
 #' @examples
 #' \dontrun{
-#' data(copd_data)
+#' load(system.file("extdata", "copd_data.rda", package = "dataMineR"))
 #' PairsPlotR(copd_data, features = c("FEV1", "FVC", "sao2", "AHI"),
 #'            GroupCol = "group")
 #' }

@@ -35,7 +35,7 @@
 #'   data.table of HR, CI, Wald statistic, and p-value per covariate).
 #' @examples
 #' \dontrun{
-#' data(dfMigrant)
+#' load(system.file("extdata", "dfMigrant.rda", package = "dataMineR"))
 #' SurvivalCompileR(dfMigrant, AdmitCol = "DateofAdmission",
 #'                   DeathCol = "DateofDeath", DischargeCol = "DateofDischarge",
 #'                   StratifyBy = "Migrant", DeathFormat = "%m/%d/%Y",

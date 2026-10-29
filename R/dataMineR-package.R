@@ -55,5 +55,5 @@ utils::globalVariables(c(
   ".column", ".ps_fit_weight", ".row_label", "ModelID", "analysis_id", "coefficient",
   "column", "correlation", "covariate", "display_label", "joint_duplicate", "label",
   "lambda", "logit_ps", "near_duplicate", "predictor", "reason", "role", "size",
-  "std_coef", "variable", "w"
+  "std_coef", "variable", "w", "colour_role"
 ))

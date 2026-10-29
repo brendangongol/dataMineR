@@ -92,7 +92,7 @@ The internal helpers \code{replicate.weights} and \code{error.f} of
 }
 \examples{
 \dontrun{
-data(egs_misc_1621)
+load(system.file("extdata", "egs_misc_1621.rda", package = "dataMineR"))
 d <- egs_misc_1621
 d$strata_id <- paste(d$YEAR, d$NIS_STRATUM)
 d$cluster_id <- paste(d$YEAR, d$HOSP_NIS)

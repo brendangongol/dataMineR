@@ -37,7 +37,7 @@
 #'   or \code{"pwrss"}), printable for a formatted summary.
 #' @examples
 #' \dontrun{
-#' data(dfMigrant)
+#' load(system.file("extdata", "dfMigrant.rda", package = "dataMineR"))
 #' PowerAnalysisR(test = "t", x = dfMigrant$Age[dfMigrant$Migrant == 1],
 #'                y = dfMigrant$Age[dfMigrant$Migrant == 0], power = 0.80)
 #' PowerAnalysisR(test = "summary_means", mu1 = 3.4, mu2 = 2.8,

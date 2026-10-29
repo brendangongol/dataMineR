@@ -41,7 +41,7 @@ observations for a given continuous column are dropped before plotting.
 }
 \examples{
 \dontrun{
-data(dfMigrant)
+load(system.file("extdata", "dfMigrant.rda", package = "dataMineR"))
 DensityPlotCompile(dfMigrant, ContinuousCols = "Age",
                     CategoricalDependents = "Migrant",
                     OutPath = tempdir())

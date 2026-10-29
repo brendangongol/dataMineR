@@ -18,7 +18,7 @@
 #'   \code{ValueCols} with at least two non-missing group levels.
 #' @examples
 #' \dontrun{
-#' data(copd_data)
+#' load(system.file("extdata", "copd_data.rda", package = "dataMineR"))
 #' GroupedBoxplotStatR(copd_data, ValueCols = c("FEV1", "FVC"),
 #'                      GroupCol = "group", SavePlots = FALSE)
 #' }
@@ -72,7 +72,7 @@ GroupedBoxplotStatR <- function(dt, ValueCols, GroupCol, OutPath = NULL, method 
 #'   \code{Plot} (a ggplot object).
 #' @examples
 #' \dontrun{
-#' data(dfMigrant)
+#' load(system.file("extdata", "dfMigrant.rda", package = "dataMineR"))
 #' CatTable <- CategoricalVariableCreate(dfMigrant, c("Migrant", "Homeless"))
 #' res <- RegressionCompile(dfMigrant, dependents = CatTable$CategoricalVariable,
 #'                           independents = "Age", Fpath = tempdir(),

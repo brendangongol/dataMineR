@@ -43,7 +43,7 @@ scaled), and plots the 2D embedding, optionally colored by
 }
 \examples{
 \dontrun{
-data(copd_data)
+load(system.file("extdata", "copd_data.rda", package = "dataMineR"))
 UMAPPlotR(copd_data, features = c("FEV1", "FVC", "sao2", "AHI"),
           GroupCol = "group")
 }

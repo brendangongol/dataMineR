@@ -20,7 +20,7 @@
 #'   its side effect of writing PNGs).
 #' @examples
 #' \dontrun{
-#' data(dfMigrant)
+#' load(system.file("extdata", "dfMigrant.rda", package = "dataMineR"))
 #' DensityPlotCompile(dfMigrant, ContinuousCols = "Age",
 #'                     CategoricalDependents = "Migrant",
 #'                     OutPath = tempdir())

@@ -47,7 +47,7 @@ the single-path \code{\link{MediationTestR}}.
 }
 \examples{
 \dontrun{
-data(dfMigrant)
+load(system.file("extdata", "dfMigrant.rda", package = "dataMineR"))
 dt <- dfMigrant[!is.na(economic) & !is.na(education) & !is.na(housing), ]
 MultiMediationPLSR(dt, Treatment = "Migrant",
                     Mediators = c("economic", "education", "housing"),

@@ -34,7 +34,7 @@ levels and runs \code{\link{continuous_compare}} across all of
 }
 \examples{
 \dontrun{
-data(dfMigrant)
+load(system.file("extdata", "dfMigrant.rda", package = "dataMineR"))
 CatTable <- CategoricalVariableCreate(dfMigrant, c("Migrant", "Homeless"))
 continuous_compare_Compile(dfMigrant, ContinuousCols = "Age",
                             CatTable = CatTable, Fpath = tempdir())

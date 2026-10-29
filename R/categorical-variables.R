@@ -15,7 +15,7 @@
 #'   row per binary variable found.
 #' @examples
 #' \dontrun{
-#' data(dfMigrant)
+#' load(system.file("extdata", "dfMigrant.rda", package = "dataMineR"))
 #' CategoricalVariableCreate(dfMigrant, c("Migrant", "Homeless", "Sex"))
 #' }
 #' @export

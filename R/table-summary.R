@@ -54,7 +54,7 @@
 #'   \code{XLSXPath} when \code{WriteTable = TRUE}.
 #' @examples
 #' \dontrun{
-#' data(dfMigrant)
+#' load(system.file("extdata", "dfMigrant.rda", package = "dataMineR"))
 #' InitialTablebg(TableDF = dfMigrant, GroupBy = "Migrant", p_values = TRUE)
 #' }
 #' @export

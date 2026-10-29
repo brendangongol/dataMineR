@@ -21,7 +21,7 @@ remotes::install_github("brendangongol/dataMineR")
 ```r
 library(dataMineR)
 
-data(dfMigrant)
+load(system.file("extdata", "dfMigrant.rda", package = "dataMineR"))
 InitialTablebg(dfMigrant, GroupBy = "Migrant", p_values = TRUE)
 ```
 

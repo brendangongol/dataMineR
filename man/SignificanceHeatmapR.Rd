@@ -44,7 +44,7 @@ dependent-by-independent grids.
 }
 \examples{
 \dontrun{
-data(dfMigrant)
+load(system.file("extdata", "dfMigrant.rda", package = "dataMineR"))
 CatTable <- CategoricalVariableCreate(dfMigrant, c("Migrant", "Homeless"))
 res <- RegressionCompile(dfMigrant, dependents = CatTable$CategoricalVariable,
                           independents = "Age", Fpath = tempdir(),

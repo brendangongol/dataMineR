@@ -41,7 +41,7 @@ significance-test brackets for every pair of group levels.
 }
 \examples{
 \dontrun{
-data(copd_data)
+load(system.file("extdata", "copd_data.rda", package = "dataMineR"))
 GroupedBoxplotStatR(copd_data, ValueCols = c("FEV1", "FVC"),
                      GroupCol = "group", SavePlots = FALSE)
 }

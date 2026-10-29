@@ -29,7 +29,7 @@ models, see \code{\link{MultiMediationPLSR}}.
 }
 \examples{
 \dontrun{
-data(dfMigrant)
+load(system.file("extdata", "dfMigrant.rda", package = "dataMineR"))
 MediationTable <- data.table::data.table(
   DependentVariable = "ICUadmission", IndependentVariable = "Migrant",
   PutativeMediator = "hpi2score")

@@ -23,7 +23,7 @@ reports whether the normality null hypothesis is rejected at p < 0.05.
 }
 \examples{
 \dontrun{
-data(dfMigrant)
+load(system.file("extdata", "dfMigrant.rda", package = "dataMineR"))
 normalityfindR(dfMigrant, cols = c("Age", "COMORBIDITYINDEX"))
 }
 }

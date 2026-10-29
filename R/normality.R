@@ -11,7 +11,7 @@
 #'   \code{"Not normally distributed"}), one row per column in \code{cols}.
 #' @examples
 #' \dontrun{
-#' data(dfMigrant)
+#' load(system.file("extdata", "dfMigrant.rda", package = "dataMineR"))
 #' normalityfindR(dfMigrant, cols = c("Age", "COMORBIDITYINDEX"))
 #' }
 #' @export

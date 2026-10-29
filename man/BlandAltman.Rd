@@ -40,7 +40,7 @@ with an optional mean-difference plot colored by a third feature.
 }
 \examples{
 \dontrun{
-data(peru_data)
+load(system.file("extdata", "peru_data.rda", package = "dataMineR"))
 BlandAltman(DataList = list(Peru = peru_data), Var1 = "hcto_1",
             Var2 = "hcto_2", SigLevel = 0.95, ColorFeature = FALSE,
             ColorBy = NA, ScaleData = FALSE)

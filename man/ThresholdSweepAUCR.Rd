@@ -40,7 +40,7 @@ cohort is filtered by \code{Predictor}.
 }
 \examples{
 \dontrun{
-data(dream_data)
+load(system.file("extdata", "dream_data.rda", package = "dataMineR"))
 ThresholdSweepAUCR(dream_data, Outcome = "opioids", Predictor = "ahi",
                     Direction = "ge")
 }

@@ -33,7 +33,7 @@ Runs \code{\link[stats]{prcomp}} on the complete-case rows of
 }
 \examples{
 \dontrun{
-data(copd_data)
+load(system.file("extdata", "copd_data.rda", package = "dataMineR"))
 PCAPlotR(copd_data, features = c("FEV1", "FVC", "sao2", "AHI"),
          GroupCol = "group")
 }

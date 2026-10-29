@@ -85,7 +85,7 @@ svyVarSel_design_data <- function(design) {
 #' @seealso \code{\link{svyVarSel_wlasso_tune}}, \code{\link{LassoCompile}}
 #' @examples
 #' \dontrun{
-#' data(egs_misc_1621)
+#' load(system.file("extdata", "egs_misc_1621.rda", package = "dataMineR"))
 #' d <- egs_misc_1621
 #' d$strata_id <- paste(d$YEAR, d$NIS_STRATUM)
 #' d$cluster_id <- paste(d$YEAR, d$HOSP_NIS)

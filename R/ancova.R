@@ -20,7 +20,7 @@
 #'   compiled interaction-model ANOVA tables).
 #' @examples
 #' \dontrun{
-#' data(dfMigrant)
+#' load(system.file("extdata", "dfMigrant.rda", package = "dataMineR"))
 #' AncovaInteractionR(dfMigrant, Dependent = "IndexSOFAscoreattimeofsepsis",
 #'                     Covariates = c("Age", "Migrant", "Homeless"),
 #'                     InteractionPairs = list(c("Age", "Migrant")))
