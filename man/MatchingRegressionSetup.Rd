@@ -14,8 +14,7 @@ MatchingRegressionSetup(
   method = "glm",
   type = NULL,
   flags = NULL,
-  Fpath = NULL,
-  examples = TRUE,
+  examples = FALSE,
   recommended = NULL
 )
 }
@@ -42,24 +41,29 @@ named vector by dependent. Poisson must be explicit.}
 \item{flags}{Optional \code{MatchingAssumptionCheck()$table} to annotate the
 rows (nothing is removed).}
 
-\item{Fpath}{Optional output folder.}
-
-\item{examples}{Logical; write illustrative rows to a separate Examples
-sheet. Example rows are never included in the executable Setup sheet.}
+\item{examples}{Logical; append illustrative rows, explained in a
+\code{Notes} column, at the end of the table (see Description).}
 
 \item{recommended}{Optional rows from \code{MatchingSetupFromLasso()}.}
 }
 \value{
-The executable setup data frame. Example rows are only written to the
-workbook's Examples sheet.
+The setup data frame; with \code{examples = TRUE} it also has a
+\code{Notes} column and the example rows at the end.
 }
 \description{
 One row per dependent x independent x matching specification: each matching
 covariate on its own (\code{single}) and all of them together
 (\code{joint}). Rows from \code{MatchingSetupFromLasso()} can be placed
-first. With \code{Fpath}, the table is written to
-\code{Matching_RegressionSetup.xlsx} for review and editing; read it back
-before fitting.
+first. The function writes nothing: save the table yourself, for example
+with \code{openxlsx::write.xlsx(list(Setup = setup), file)}, edit it, and
+read the \code{Setup} sheet back before fitting.
+}
+\details{
+With \code{examples = TRUE}, illustrative rows (ratio, caliper, quadratic and
+spline terms, covariate calipers, interactions, outcome adjustment) are
+appended to the same table, with a \code{Notes} column explaining each. They
+are ordinary rows and are fitted like any other, so delete the ones you do
+not want before reading the table back.
 }
 \examples{
 \dontrun{

@@ -172,53 +172,20 @@ PS_SetupExamples <- function(DT, setup) {
   do.call(rbind, out)
 }
 
-#' Write Matching_RegressionSetup.xlsx
-#'
-#' Backs up an existing file before overwriting it.
-#'
-#' @param setup Setup table.
-#' @param DT Data frame (for the example rows).
-#' @param Fpath Output folder.
-#' @param examples Logical; write example rows to a separate Examples sheet.
-#' @return Invisibly, the executable Setup sheet written.
-#' @keywords internal
-#' @noRd
-PS_WriteSetup <- function(setup, DT, Fpath, examples = TRUE) {
-  dir.create(Fpath, recursive=TRUE, showWarnings=FALSE)
-  file <- file.path(Fpath, "Matching_RegressionSetup.xlsx")
-  extra <- NULL
-  if (examples) {
-    extra <- PS_SetupExamples(DT, setup)
-    extra$ModelID <- tail(make.unique(c(as.character(setup$ModelID), as.character(extra$ModelID))), nrow(extra))
-  }
-  flag_columns <- intersect(c("flagged_covariates", "covariate_flags"), names(setup))
-  if (all(vapply(setup[flag_columns], function(x) all(is.na(x) | trimws(as.character(x)) == ""), logical(1))))
-    setup[flag_columns] <- NULL
-  sheets <- list(Setup=setup)
-  if (!is.null(extra)) sheets$Examples <- extra
-  wb <- openxlsx::createWorkbook()
-  for (nm in names(sheets)) {
-    openxlsx::addWorksheet(wb, nm)
-    openxlsx::writeData(wb, nm, sheets[[nm]], keepNA=TRUE, na.string="NA")
-    openxlsx::setColWidths(wb, nm, cols=seq_len(ncol(sheets[[nm]])), widths="auto")
-  }
-  if (file.exists(file)) {
-    backup <- paste0(file,".before-",format(Sys.time(),"%Y%m%d-%H%M%S"),".bak")
-    if (file.exists(backup)) backup <- tempfile(pattern=paste0(basename(file),".before-"),tmpdir=Fpath,fileext=".bak")
-    if (!file.copy(file,backup)) stop("Could not back up existing setup workbook.")
-  }
-  openxlsx::saveWorkbook(wb,file,overwrite=TRUE)
-  invisible(setup)
-}
-
 #' Build the setup table for PSRegression, IPTWRegression and EBRegression
 #'
 #' One row per dependent x independent x matching specification: each matching
 #' covariate on its own (\code{single}) and all of them together
 #' (\code{joint}). Rows from \code{MatchingSetupFromLasso()} can be placed
-#' first. With \code{Fpath}, the table is written to
-#' \code{Matching_RegressionSetup.xlsx} for review and editing; read it back
-#' before fitting.
+#' first. The function writes nothing: save the table yourself, for example
+#' with \code{openxlsx::write.xlsx(list(Setup = setup), file)}, edit it, and
+#' read the \code{Setup} sheet back before fitting.
+#'
+#' With \code{examples = TRUE}, illustrative rows (ratio, caliper, quadratic and
+#' spline terms, covariate calipers, interactions, outcome adjustment) are
+#' appended to the same table, with a \code{Notes} column explaining each. They
+#' are ordinary rows and are fitted like any other, so delete the ones you do
+#' not want before reading the table back.
 #'
 #' @param DT Data frame.
 #' @param dependents Outcome columns.
@@ -233,12 +200,11 @@ PS_WriteSetup <- function(setup, DT, Fpath, examples = TRUE) {
 #'   named vector by dependent. Poisson must be explicit.
 #' @param flags Optional \code{MatchingAssumptionCheck()$table} to annotate the
 #'   rows (nothing is removed).
-#' @param Fpath Optional output folder.
-#' @param examples Logical; write illustrative rows to a separate Examples
-#'   sheet. Example rows are never included in the executable Setup sheet.
+#' @param examples Logical; append illustrative rows, explained in a
+#'   \code{Notes} column, at the end of the table (see Description).
 #' @param recommended Optional rows from \code{MatchingSetupFromLasso()}.
-#' @return The executable setup data frame. Example rows are only written to the
-#'   workbook's Examples sheet.
+#' @return The setup data frame; with \code{examples = TRUE} it also has a
+#'   \code{Notes} column and the example rows at the end.
 #' @examples
 #' \dontrun{
 #' setup <- MatchingRegressionSetup(model_dt, dependents = c("Death_01", "LOS"),
@@ -246,7 +212,7 @@ PS_WriteSetup <- function(setup, DT, Fpath, examples = TRUE) {
 #'   method = "glm", type = c(LOS = "Linear"))
 #' }
 #' @export
-MatchingRegressionSetup <- function(DT, dependents, independents, matching, single = TRUE, joint = TRUE, method = "glm", type = NULL, flags = NULL, Fpath = NULL, examples = TRUE,
+MatchingRegressionSetup <- function(DT, dependents, independents, matching, single = TRUE, joint = TRUE, method = "glm", type = NULL, flags = NULL, examples = FALSE,
                                     recommended = NULL) {
   DT <- as.data.frame(DT)
   for (vars in list(dependents, independents, matching))
@@ -276,9 +242,17 @@ MatchingRegressionSetup <- function(DT, dependents, independents, matching, sing
     if (anyDuplicated(as.character(setup$ModelID))) stop("recommended ModelIDs clash with the generated ones.")
   }
   setup <- PSRegressionFlags(setup, flags)
-  flag_columns <- intersect(c("flagged_covariates", "covariate_flags"), names(setup))
-  if (all(vapply(setup[flag_columns], function(x) all(is.na(x) | trimws(as.character(x)) == ""), logical(1))))
-    setup[flag_columns] <- NULL
-  if (!is.null(Fpath)) setup <- PS_WriteSetup(setup, DT, Fpath, examples)
+  drop_empty_flags <- function(x) {
+    flag_columns <- intersect(c("flagged_covariates", "covariate_flags"), names(x))
+    if (all(vapply(x[flag_columns], function(v) all(is.na(v) | trimws(as.character(v)) == ""), logical(1)))) x[flag_columns] <- NULL
+    x
+  }
+  setup <- drop_empty_flags(setup)
+  if (examples) {
+    extra <- PS_SetupExamples(DT, setup)
+    extra$ModelID <- tail(make.unique(c(as.character(setup$ModelID), as.character(extra$ModelID))), nrow(extra))
+    setup$Notes <- ""
+    setup <- drop_empty_flags(as.data.frame(data.table::rbindlist(list(setup, extra), fill = TRUE)))
+  }
   setup
 }
