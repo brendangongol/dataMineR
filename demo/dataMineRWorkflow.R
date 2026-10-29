@@ -522,7 +522,9 @@ LassoResults <- LassoCompile(DT = lasso_ready_df,
                              exclude_predictors = NULL)          # optional: leave predictors out of one dependent's LASSO after a first run,
 # e.g. list(sud_any_01 = c("elix_drug", "elix_alcohol")) once the overview
 # plot flags them as near-duplicates of the exposure
-LassoResults$models                                          # one row per dependent: lambda, stability, refit comparison, validation
+saveRDS(LassoResults, file.path(LassoPath, "LassoResults.rds"))      # keep the result: LassoCompile() clears its checkpoints once it finishes
+# LassoResults <- readRDS(file.path(LassoPath, "LassoResults.rds"))  # in a later session, run this instead of LassoCompile() (data and settings above must be unchanged)
+LassoResults$models                                        # one row per dependent: lambda, stability, refit comparison, validation
 LassoResults$table[LassoResults$table$selected, ]            # selected predictors of every dependent
 wlasso.plot(LassoResults$fits[["LOS"]]$fit)                  # CV error curve for one dependent
 
@@ -538,10 +540,10 @@ for (dep in names(LassoResults$fits)) {
     next
   }
   training_rows <- lasso_ready_df[result$rows, , drop = FALSE]
-  lasso_paths[[dep]] <- svyVarSel_coefficient_path_plot(result$fit, training_rows,
+  lasso_paths[[dep]] <- LassoCoefficientPathPlot(result$fit, training_rows,
                                                         weights = "DISCWT", j = result$selection$j, Fpath = LassoPlotPath, PrintPlot = FALSE,
                                                         FileName = paste0(dep, "_CoefficientPaths.pdf"))
-  lasso_correlations[[dep]] <- svyVarSel_correlation_plot(result$fit, training_rows,
+  lasso_correlations[[dep]] <- LassoCorrelationPlot(result$fit, training_rows,
                                                           weights = "DISCWT", j = result$selection$j, Fpath = LassoPlotPath, PrintPlot = FALSE,
                                                           FileName = paste0(dep, "_PredictorCorrelations.pdf"))
 }
@@ -566,6 +568,7 @@ LassoOverview <- LassoOverviewPlot(results = LassoResults,
                                    ClusterMethod = "correlation",     # row order within each role: "correlation", "signed" or "none"
                                    Fpath = LassoPlotPath,
                                    FileName = "LASSO_SelectionOverview.pdf",
+                                   ShowRoles = FALSE,
                                    PrintPlot = TRUE)
 LassoOverview$roles   # each predictor's role and the dependents it was selected for
 

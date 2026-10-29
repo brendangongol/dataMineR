@@ -241,10 +241,10 @@ svyVarSel_lambda_select <- function(fit, lambda_rule = c("min", "1se"), PrintSum
 #'   correlations), \code{lambda} and \code{omitted_constants}.
 #' @examples
 #' \dontrun{
-#' svyVarSel_coefficient_path_plot(fit, d, weights = "DISCWT")
+#' LassoCoefficientPathPlot(fit, d, weights = "DISCWT")
 #' }
 #' @export
-svyVarSel_coefficient_path_plot <- function(fit, data, weights = NULL,
+LassoCoefficientPathPlot <- function(fit, data, weights = NULL,
     j = match(fit$lambda$min, fit$lambda$grid), standardize = TRUE,
     Fpath = NULL, FileName = "LASSO_CoefficientPaths.pdf", PrintPlot = is.null(Fpath)) {
   beta <- as.matrix(fit$model$grid$beta); grid <- fit$lambda$grid
@@ -307,7 +307,7 @@ svyVarSel_coefficient_path_plot <- function(fit, data, weights = NULL,
 #' Correlation shows overlapping information; it does not prove why a predictor
 #' was excluded.
 #'
-#' @inheritParams svyVarSel_coefficient_path_plot
+#' @inheritParams LassoCoefficientPathPlot
 #' @param partner_cor Minimum absolute correlation for an excluded alternative.
 #' @param partners_per_variable Maximum number of alternatives per selected
 #'   predictor.
@@ -316,10 +316,10 @@ svyVarSel_coefficient_path_plot <- function(fit, data, weights = NULL,
 #'   \code{data} and \code{omitted_constants}.
 #' @examples
 #' \dontrun{
-#' svyVarSel_correlation_plot(fit, d, weights = "DISCWT", partner_cor = 0.5)
+#' LassoCorrelationPlot(fit, d, weights = "DISCWT", partner_cor = 0.5)
 #' }
 #' @export
-svyVarSel_correlation_plot <- function(fit, data, weights = NULL,
+LassoCorrelationPlot <- function(fit, data, weights = NULL,
     j = match(fit$lambda$min, fit$lambda$grid), partner_cor = 0.5,
     partners_per_variable = 2, Fpath = NULL,
     FileName = "LASSO_PredictorCorrelations.pdf", PrintPlot = is.null(Fpath)) {
@@ -328,7 +328,7 @@ svyVarSel_correlation_plot <- function(fit, data, weights = NULL,
   if(length(partners_per_variable)!=1L || !is.finite(partners_per_variable) ||
      partners_per_variable<0 || partners_per_variable!=floor(partners_per_variable))
     stop("partners_per_variable must be a nonnegative integer.")
-  info <- svyVarSel_coefficient_path_plot(fit,data,weights,j,PrintPlot=FALSE)
+  info <- LassoCoefficientPathPlot(fit,data,weights,j,PrintPlot=FALSE)
   cor <- info$correlation; selected <- intersect(info$selected,rownames(cor))
   partners <- data.frame(selected=character(),alternative=character(),correlation=numeric())
   for(v in selected) {
