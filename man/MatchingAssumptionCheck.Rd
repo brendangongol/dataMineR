@@ -57,7 +57,8 @@ share of its records, for the weighting check.}
 \value{
 Invisibly, a list: \code{table} (one row per covariate, exposure and
 estimand with the flags and suggested action), \code{keep} (all
-candidates), \code{checks}, \code{ps_summary} and \code{common_support}.
+candidates), \code{checks}, \code{readme} (content for the workbook README
+sheet), \code{ps_summary} and \code{common_support}.
 }
 \description{
 For each candidate covariate and exposure: its weighted correlation with the

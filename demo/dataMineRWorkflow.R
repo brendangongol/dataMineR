@@ -622,7 +622,8 @@ Positivity <- MatchingAssumptionCheck(model_dt, exposure = exposure_var, covaria
                                       weights = "DISCWT", post_exposure = NULL,  # Supply column names here when timing is known.
                                       estimand = c("ATT", "ATE"),                # ATT for matching / EB, ATE for IPTW
                                       IPTWSampleSizeMinimum = 0.10)
-openxlsx::write.xlsx(list(Flags = Positivity$table, Checks = Positivity$checks), file.path(MatchingSetupPath, "Matching_CovariateFlags.xlsx"))
+openxlsx::write.xlsx(list(README = Positivity$readme, Flags = Positivity$table, Checks = Positivity$checks),
+                    file.path(MatchingSetupPath, "Matching_CovariateFlags.xlsx"), colWidths = "auto")
 
 #################################################
 #### Set up matching regression combinations ####
