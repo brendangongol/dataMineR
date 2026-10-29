@@ -555,8 +555,9 @@ LassoOverview <- LassoOverviewPlot(results = LassoResults,
                                    data = lasso_ready_df,             # the DT given to LassoCompile (weighted SDs)
                                    exposures = exposure_vars,         # every exposure used by the matching section
                                    weights = "DISCWT",
-                                   SigColumn = "p_fdr",               # outline: unpenalized refit significant after FDR
+                                   SigColumn = "p_fdr",               # used only when ShowRefitMarks = TRUE
                                    SigThreshold = 0.05,
+                                   ShowRefitMarks = FALSE,             # TRUE: outline significant and X unreliable unpenalized refits
                                    WeakThreshold = 0.1,               # confounder strong if |standardized exposure-LASSO coefficient| >= this
                                    phi_threshold = 0.8,               # near-duplicate of the exposure: |r| >= this (MatchingAssumptionCheck)
                                    joint_min_cor = 0.3,               # codes that together nearly are the exposure (MatchingAssumptionCheck)
@@ -569,6 +570,7 @@ LassoOverview <- LassoOverviewPlot(results = LassoResults,
                                    Fpath = LassoPlotPath,
                                    FileName = "LASSO_SelectionOverview.pdf",
                                    ShowRoles = FALSE,
+                                   ShowRefitMarks = FALSE,
                                    PrintPlot = TRUE)
 LassoOverview$roles   # each predictor's role and the dependents it was selected for
 

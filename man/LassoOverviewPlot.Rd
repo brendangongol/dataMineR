@@ -11,6 +11,7 @@ LassoOverviewPlot(
   weights = NULL,
   SigColumn = "p_fdr",
   SigThreshold = 0.05,
+  ShowRefitMarks = FALSE,
   WeakThreshold = 0.1,
   phi_threshold = 0.8,
   joint_min_cor = 0.3,
@@ -36,9 +37,13 @@ LassoOverviewPlot(
 
 \item{weights}{Name of the weight column, or \code{NULL}.}
 
-\item{SigColumn}{Results column used for the outline.}
+\item{SigColumn}{Results column used for the optional unpenalized-refit
+outline.}
 
 \item{SigThreshold}{Threshold for \code{SigColumn}.}
+
+\item{ShowRefitMarks}{Logical; add the unpenalized-refit outline and X marks.
+The default is \code{FALSE}.}
 
 \item{WeakThreshold}{Absolute standardized exposure-LASSO coefficient below
 which a confounder is weak.}
@@ -91,8 +96,9 @@ one block in pane 1. Pane 1
 (from the data): the covariate's weighted correlation with each exposure,
 from \code{MatchingAssumptionCheck()}. Pane 2 (from \code{LassoCompile()}): a
 bubble where a dependent's LASSO kept the covariate; colour is the
-standardized coefficient, size the bootstrap selection percentage, an
-outline marks a significant unpenalized refit and a cross an unreliable one.
+standardized coefficient and size the bootstrap selection percentage. With
+\code{ShowRefitMarks = TRUE}, an outline marks a significant unpenalized
+refit and an X marks one made unreliable by separation.
 Optional pane 3 (\code{ShowRoles = TRUE}): the role and the reason. Without
 it the role groups label the rows on the right of pane 2. Roles, in order: near-duplicate of the
 exposure (flagged alone); near-duplicate with other codes (flagged by the

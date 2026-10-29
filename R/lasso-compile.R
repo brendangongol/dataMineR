@@ -434,8 +434,9 @@ Lasso_WriteReadme <- function(table, models, Fpath) {
 #' (from the data): the covariate's weighted correlation with each exposure,
 #' from \code{MatchingAssumptionCheck()}. Pane 2 (from \code{LassoCompile()}): a
 #' bubble where a dependent's LASSO kept the covariate; colour is the
-#' standardized coefficient, size the bootstrap selection percentage, an
-#' outline marks a significant unpenalized refit and a cross an unreliable one.
+#' standardized coefficient and size the bootstrap selection percentage. With
+#' \code{ShowRefitMarks = TRUE}, an outline marks a significant unpenalized
+#' refit and an X marks one made unreliable by separation.
 #' Optional pane 3 (\code{ShowRoles = TRUE}): the role and the reason. Without
 #' it the role groups label the rows on the right of pane 2. Roles, in order: near-duplicate of the
 #' exposure (flagged alone); near-duplicate with other codes (flagged by the
@@ -449,8 +450,11 @@ Lasso_WriteReadme <- function(table, models, Fpath) {
 #' @param exposures Dependents that are exposures; \code{NULL} leaves out pane
 #'   1 and the confounder roles.
 #' @param weights Name of the weight column, or \code{NULL}.
-#' @param SigColumn Results column used for the outline.
+#' @param SigColumn Results column used for the optional unpenalized-refit
+#'   outline.
 #' @param SigThreshold Threshold for \code{SigColumn}.
+#' @param ShowRefitMarks Logical; add the unpenalized-refit outline and X marks.
+#'   The default is \code{FALSE}.
 #' @param WeakThreshold Absolute standardized exposure-LASSO coefficient below
 #'   which a confounder is weak.
 #' @param phi_threshold,joint_min_cor,share_threshold Passed to
@@ -488,6 +492,7 @@ Lasso_WriteReadme <- function(table, models, Fpath) {
 #' }
 #' @export
 LassoOverviewPlot <- function(results, data, exposures = NULL, weights = NULL, SigColumn = "p_fdr", SigThreshold = 0.05,
+                              ShowRefitMarks = FALSE,
                               WeakThreshold = 0.1, phi_threshold = 0.8, joint_min_cor = 0.3, share_threshold = 0.01,
                               ReferenceLine = phi_threshold, SizeBreaks = c(25, 50, 75, 100),
                               ShowNotSelected = FALSE, ColorLimitQuantile = 0.95,
@@ -496,9 +501,11 @@ LassoOverviewPlot <- function(results, data, exposures = NULL, weights = NULL, S
   ClusterMethod <- match.arg(ClusterMethod)
   tab <- as.data.frame(results$table)
   data <- as.data.frame(data)
+  if (!is.logical(ShowRefitMarks) || length(ShowRefitMarks) != 1L || is.na(ShowRefitMarks))
+    stop("ShowRefitMarks must be TRUE or FALSE.")
   dependents <- unique(tab$dependent)
   if (length(setdiff(exposures, dependents))) { stop("exposures must be dependents of the LassoCompile results: ", paste(setdiff(exposures, dependents), collapse = ", ")) }
-  if (!SigColumn %in% names(tab)) { stop("SigColumn '", SigColumn, "' is not a column of results$table.") }
+  if (ShowRefitMarks && !SigColumn %in% names(tab)) { stop("SigColumn '", SigColumn, "' is not a column of results$table.") }
   outcomes <- setdiff(dependents, exposures)
   tab$std_coef <- NA_real_
   for (dep in dependents) {
@@ -611,10 +618,10 @@ LassoOverviewPlot <- function(results, data, exposures = NULL, weights = NULL, S
   cells$.column <- factor(ifelse(cells$dependent %in% exposures, "Exposure", "Outcomes"), levels = c("Exposure", "Outcomes"))
   cells$dependent <- factor(cells$dependent, levels = c(exposures, outcomes))
   cells$reliable <- is.na(cells$refit_reliable) | cells$refit_reliable
-  cells$sig <- cells$selected & cells$reliable & !is.na(cells[[SigColumn]]) & cells[[SigColumn]] < SigThreshold
+  cells$sig <- if (ShowRefitMarks) cells$selected & cells$reliable & !is.na(cells[[SigColumn]]) & cells[[SigColumn]] < SigThreshold else FALSE
   shown <- cells[cells$selected, ]
-  mark_sig <- sprintf("Outline: unpenalized refit %s < %g", SigColumn, SigThreshold)
-  mark_unreliable <- "Cross: refit unreliable (separation)"
+  mark_sig <- sprintf("%s < %g", SigColumn, SigThreshold)
+  mark_unreliable <- "Unreliable (separation)"
   left_out <- do.call(rbind, lapply(exposures, function(ex) {
     v <- setdiff(keep, c(ex, tab$independent[tab$dependent == ex]))
     if (length(v)) data.frame(dependent = ex, independent = v, stringsAsFactors = FALSE) else NULL
@@ -628,24 +635,30 @@ LassoOverviewPlot <- function(results, data, exposures = NULL, weights = NULL, S
   p_sel <- ggplot2::ggplot(cells, ggplot2::aes(x = dependent, y = independent)) +
     ggplot2::geom_point(colour = "grey90", size = 1, show.legend = FALSE) +
     ggplot2::geom_point(data = shown, ggplot2::aes(size = size, fill = std_coef), shape = 21, colour = "grey55", stroke = 0.3) +
-    ggplot2::geom_point(data = shown[shown$sig, ], ggplot2::aes(size = size, shape = mark_sig), fill = NA, colour = "black", stroke = 1.1,
-                        show.legend = c(size = FALSE, shape = TRUE)) +
-    ggplot2::geom_point(data = shown[!shown$reliable, ], ggplot2::aes(shape = mark_unreliable), colour = "black", size = 2,
-                        show.legend = c(shape = TRUE, size = FALSE, fill = FALSE)) +
     ggplot2::geom_text(data = left_out, ggplot2::aes(label = "excl."), size = 2.3, colour = "grey35", show.legend = FALSE) +
     ggplot2::scale_fill_distiller(palette = "RdBu", direction = -1, limits = c(-lim, lim), oob = scales::squish,
                                   name = "Colour: standardized\nLASSO coefficient\n(red raises, blue lowers)") +
     ggplot2::scale_radius(range = c(0.8, 7), limits = c(0, 100), breaks = SizeBreaks, labels = paste0(SizeBreaks, "%"),
                           name = if (all(is.na(tab$selected_percent))) "Size: bootstrap skipped\n(all shown at 100%)" else "Size: % of bootstrap\nrefits keeping it",
                           guide = ggplot2::guide_legend(override.aes = list(shape = 21, fill = "grey75", colour = "grey40"))) +
-    ggplot2::scale_shape_manual(name = "Marks", values = stats::setNames(c(21, 4), c(mark_sig, mark_unreliable)),
-                                guide = ggplot2::guide_legend(override.aes = list(size = 4, fill = NA, stroke = 1.1))) +
     ggplot2::facet_grid(ggplot2::vars(role), ggplot2::vars(.column), scales = "free", space = "free",
                         labeller = ggplot2::labeller(role = ggplot2::label_wrap_gen(20))) +
     ggplot2::labs(x = NULL, y = NULL, title = "2. LASSO selection",
                   subtitle = "Bubble = kept by the LASSO for that column.\nexcl. = left out of that LASSO by the user") +
     pane_theme + ggplot2::theme(axis.text.y = if (is.null(exposures)) ggplot2::element_text() else ggplot2::element_blank(),
                                 axis.text.x = ggplot2::element_text(angle = 45, hjust = 1))
+  if (ShowRefitMarks) {
+    p_sel <- p_sel +
+      ggplot2::geom_point(data = shown[shown$sig, ], ggplot2::aes(size = size, shape = mark_sig),
+                          fill = NA, colour = "black", stroke = 1.1,
+                          show.legend = c(size = FALSE, shape = TRUE)) +
+      ggplot2::geom_point(data = shown[!shown$reliable, ], ggplot2::aes(shape = mark_unreliable),
+                          colour = "black", size = 2,
+                          show.legend = c(shape = TRUE, size = FALSE, fill = FALSE)) +
+      ggplot2::scale_shape_manual(name = "Unpenalized refit",
+                                  values = stats::setNames(c(21, 4), c(mark_sig, mark_unreliable)),
+                                  guide = ggplot2::guide_legend(override.aes = list(size = 4, fill = NA, stroke = 1.1)))
+  }
   # Without pane 3 the row groups are named on the right edge of pane 2.
   if (!ShowRoles) p_sel <- p_sel + ggplot2::theme(strip.text.y = ggplot2::element_text(angle = 0, face = "bold", hjust = 0))
   why <- roles[roles$predictor %in% keep, ]
