@@ -426,7 +426,9 @@ Lasso_WriteReadme <- function(table, models, Fpath) {
 
 #' Overview of LassoCompile results in three panes
 #'
-#' One row per covariate, so each role can be traced to its source. Pane 1
+#' One row per covariate, so each role can be traced to its source. An
+#' exposure that is also a predictor of the other dependents is a row too, with
+#' its correlation to the other exposures in pane 1. Pane 1
 #' (from the data): the covariate's weighted correlation with each exposure,
 #' from \code{MatchingAssumptionCheck()}. Pane 2 (from \code{LassoCompile()}): a
 #' bubble where a dependent's LASSO kept the covariate; colour is the
@@ -494,10 +496,11 @@ LassoOverviewPlot <- function(results, data, exposures = NULL, weights = NULL, S
     tab$std_coef[at] <- tab$lasso_coef[at] * sds
   }
   tab$size <- ifelse(is.na(tab$selected_percent), 100, tab$selected_percent)
-  covariates <- setdiff(unique(tab$independent), exposures)   # an exposure is a dependent here, not a covariate with a role
+  # An exposure that is also a predictor stays a row, so its link to the other exposures shows (an exposure is never its own covariate).
+  covariates <- unique(tab$independent)
   link <- do.call(rbind, lapply(exposures, function(ex) {
     rows <- results$fits[[ex]]$rows
-    cv <- covariates   # every covariate, including those left out of the exposure LASSO (exclude_predictors)
+    cv <- setdiff(covariates, ex)   # every covariate, including those left out of the exposure LASSO (exclude_predictors)
     chk <- MatchingAssumptionCheck(data[rows, , drop = FALSE], exposure = ex, covariates = cv, weights = weights, phi_threshold = phi_threshold,
                                    joint_min_cor = joint_min_cor, share_threshold = share_threshold, PrintSummary = FALSE)$table
     data.frame(exposure = ex, covariate = chk$variable, correlation = chk$correlation, exposed_share_with = chk$exposed_share_with,
@@ -506,7 +509,8 @@ LassoOverviewPlot <- function(results, data, exposures = NULL, weights = NULL, S
   }))
   chosen <- tab[tab$selected, ]
   sel_by <- function(p, deps) intersect(deps, chosen$dependent[chosen$independent == p])
-  excluded_from <- function(p) exposures[!vapply(exposures, function(ex) p %in% tab$independent[tab$dependent == ex], logical(1))]
+  excluded_from <- function(p) { others <- setdiff(exposures, p)
+    others[!vapply(others, function(ex) p %in% tab$independent[tab$dependent == ex], logical(1))] }
   exp_coef <- vapply(covariates, function(p) { s <- chosen[chosen$independent == p & chosen$dependent %in% exposures, ]
                                                if (nrow(s)) s$std_coef[which.max(abs(s$std_coef))] else NA_real_ }, numeric(1))
   roles <- do.call(rbind, lapply(covariates, function(p) {
@@ -542,7 +546,7 @@ LassoOverviewPlot <- function(results, data, exposures = NULL, weights = NULL, S
   roles <- roles[order(match(roles$role, role_levels), -roles$n_outcomes), ]
   rownames(roles) <- NULL
   roles_by_exposure <- if (length(exposures)) do.call(rbind, lapply(exposures, function(ex) {
-    do.call(rbind, lapply(covariates, function(p) {
+    do.call(rbind, lapply(setdiff(covariates, ex), function(p) {
       for_exp <- p %in% chosen$independent[chosen$dependent == ex]
       for_out <- sel_by(p, outcomes)
       lk <- link[link$exposure == ex & link$covariate == p, , drop = FALSE]
@@ -594,7 +598,7 @@ LassoOverviewPlot <- function(results, data, exposures = NULL, weights = NULL, S
   mark_sig <- sprintf("Outline: unpenalized refit %s < %g", SigColumn, SigThreshold)
   mark_unreliable <- "Cross: refit unreliable (separation)"
   left_out <- do.call(rbind, lapply(exposures, function(ex) {
-    v <- setdiff(keep, tab$independent[tab$dependent == ex])
+    v <- setdiff(keep, c(ex, tab$independent[tab$dependent == ex]))
     if (length(v)) data.frame(dependent = ex, independent = v, stringsAsFactors = FALSE) else NULL
   }))
   if (is.null(left_out)) left_out <- data.frame(dependent = character(0), independent = character(0))
@@ -658,7 +662,7 @@ LassoOverviewPlot <- function(results, data, exposures = NULL, weights = NULL, S
                                       if (length(ReferenceLine)) sprintf("Dashed: |r| = %g (flag at |r| >= %g).\n", ReferenceLine, phi_threshold) else "",
                                       "Label: r, % of patients with it exposed")) +
       pane_theme
-    p <- patchwork::wrap_plots(p_link, p_sel, p_why, widths = c(3, length(dependents), 4.5)) +
+    p <- patchwork::wrap_plots(p_link, p_sel, p_why, widths = c(max(3, 2 * length(exposures)), length(dependents), 4.5)) +
       patchwork::plot_annotation(title = "LASSO selection overview")
   }
   p <- p + patchwork::plot_layout(guides = "collect")

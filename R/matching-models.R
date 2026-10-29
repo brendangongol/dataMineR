@@ -389,6 +389,13 @@ PS_BalanceDiagnostics <- function(d, a, sw, after, balance_covariates, model_cov
       var_ratio_before = col("V.Ratio.Un"), var_ratio_after = col("V.Ratio.Adj"),
       ks_before = col("KS.Un"), ks_after = col("KS.Adj"), row.names = NULL)
   balance$balanced <- is.finite(balance$smd_after) & abs(balance$smd_after) < balance_threshold
+  # An SMD this large means the exposed group has almost no variance in the covariate, i.e. the covariate is a
+  # near-duplicate of the exposure. Report it here, named, instead of through cobalt's anonymous console warning.
+  extreme <- balance$variable[(is.finite(balance$smd_before) & abs(balance$smd_before) > 5) |
+                              (is.finite(balance$smd_after) & abs(balance$smd_after) > 5)]
+  if (length(extreme)) fit_warnings <- c(fit_warnings, sprintf(
+    "|SMD| above 5 for %s: the exposed group has almost no variance in it (usually a near-duplicate of the exposure); consider leaving it out of the balance covariates.",
+    paste(extreme, collapse = ", ")))
   # Ask cobalt for its actual expanded row names; prefix matching can confuse
   # similarly named columns and does not reliably handle factor-level labels.
   row_map <- setNames(lapply(balance_covariates, function(v) {
@@ -430,6 +437,24 @@ PS_BalanceDiagnostics <- function(d, a, sw, after, balance_covariates, model_cov
   for (i in seq_len(nrow(diagnostics))) for (nm in setdiff(names(diagnostics), "group"))
     balance[[paste0(diagnostics$group[i], "_", nm)]] <- diagnostics[[nm]][i]
   list(bal_tab = bt, balance = balance, diagnostics = diagnostics)
+}
+
+#' Love plot of absolute standardized mean differences
+#'
+#' Wraps \code{cobalt::love.plot()} and drops its generic "Large mean
+#' differences detected" warning, which names neither the model nor the
+#' covariate; the same condition is reported per covariate in
+#' \code{PS_BalanceDiagnostics()}'s \code{fit_warnings}.
+#'
+#' @param bt A \code{cobalt::bal.tab()} result.
+#' @param balance_threshold Absolute SMD below which a covariate is balanced.
+#' @return A ggplot.
+#' @keywords internal
+#' @noRd
+PS_LovePlot <- function(bt, balance_threshold) {
+  withCallingHandlers(
+    cobalt::love.plot(bt, stats = "m", abs = TRUE, thresholds = c(m = balance_threshold)),
+    warning = function(w) if (grepl("Large mean differences detected", conditionMessage(w), fixed = TRUE)) invokeRestart("muffleWarning"))
 }
 
 #' Match or weight on a propensity score and check balance
@@ -519,7 +544,7 @@ PSMatchWeight <- function(psfit, approach = c("match", "weight", "none"), estima
   structure(list(approach = approach, estimand = estimand, target_population = target_population,
       data = out, balance = balance, diagnostics = diagnostics,
       max_smd_after = diagnostics$max_abs_smd_after[1],
-      love_plot = cobalt::love.plot(bt, stats = "m", abs = TRUE, thresholds = c(m = balance_threshold)),
+      love_plot = PS_LovePlot(bt, balance_threshold),
       ess = ess, n_unmatched = n_unmatched, object = object, exposure = a, covariates = psfit$covariates,
       weights = psfit$weights, cluster = psfit$cluster, strata = psfit$strata), class = "PSMatchWeight")
 }
@@ -765,7 +790,7 @@ EBWeight <- function(data, exposure, covariates, weights = NULL, cluster = NULL,
                               balance_threshold, fit_warnings = fit_warnings)
   structure(list(approach = "ebal", estimand = estimand, target_population = if (estimand == "ATT") "Exposed population" else estimand,
       data = out, balance = bd$balance, diagnostics = bd$diagnostics, max_smd_after = bd$diagnostics$max_abs_smd_after[1],
-      love_plot = cobalt::love.plot(bd$bal_tab, stats = "m", abs = TRUE, thresholds = c(m = balance_threshold)),
+      love_plot = PS_LovePlot(bd$bal_tab, balance_threshold),
       ess = setNames(bd$diagnostics$ess_after, bd$diagnostics$group), n_unmatched = NA, object = object, exposure = exposure,
       covariates = PS_BaseVars(covariates), moments = moments, formula = f, fit_warnings = fit_warnings,
       weights = weights, cluster = cluster, strata = strata), class = "PSMatchWeight")

@@ -71,7 +71,9 @@ used for exposure-specific matching recommendations), and \code{table}
 (the plotted cells).
 }
 \description{
-One row per covariate, so each role can be traced to its source. Pane 1
+One row per covariate, so each role can be traced to its source. An
+exposure that is also a predictor of the other dependents is a row too, with
+its correlation to the other exposures in pane 1. Pane 1
 (from the data): the covariate's weighted correlation with each exposure,
 from \code{MatchingAssumptionCheck()}. Pane 2 (from \code{LassoCompile()}): a
 bubble where a dependent's LASSO kept the covariate; colour is the
